@@ -1,1 +1,2984 @@
-NONE
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Docker Compose</title>
+<script src="pinyin_map.js"></script>
+<style>
+:root{
+  --pri:#3d5f9c; --pri-h:#2f4d80; --pri-soft:#e8eef7;
+  --bg:#f5f7fa; --card:#fff; --line:#e2e8f0; --txt:#1e293b; --sub:#64748b;
+  --ok:#16a34a; --warn:#ea580c; --off:#64748b; --danger:#dc2626;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+
+/* 顶部工具条 */
+.toolbar{background:var(--card);border-bottom:1px solid var(--line);padding:16px 18px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(15,23,42,.05)}
+.toolbar .tt{font-size:20px;font-weight:700;letter-spacing:.2px;white-space:nowrap;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.toolbar .tt .ver{font-size:11px;font-weight:500;color:var(--sub);background:#f1f5f9;border:1px solid var(--line);border-radius:10px;padding:1px 8px;margin-left:6px;vertical-align:2px}
+.autoup{border-radius:8px;padding:4px 14px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--line);transition:all .15s;flex-shrink:0}
+.autoup.off{background:#eef0f3;color:#8a919c}
+.autoup.on{background:var(--pri,#1a73e8);color:#fff;border-color:var(--pri,#1a73e8)}
+.toolbar .path{font-size:12px;color:var(--sub);word-break:break-all}
+.toolbar .desc{font-size:12px;color:var(--sub);line-height:1.4}
+.toolbar .stats{padding:2px 0;gap:14px}
+.toolbar .stats .stat{font-size:13px}
+.toolbar .btns{display:flex;gap:8px;margin-top:6px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 14px;font-size:13px;cursor:pointer;color:var(--txt);transition:.15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--pri);color:var(--pri)}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{background:var(--pri-h);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.dim{background:#e2e8f0;color:#94a3b8;border-color:#e2e8f0;cursor:pointer}
+.btn.dim:hover{background:#e2e8f0;color:#94a3b8;border-color:#e2e8f0}
+.btn.ghost{background:#e2e8f0;color:#475569;border-color:#e2e8f0;cursor:pointer}
+.btn.ghost:hover{background:#d6deeb;color:#334155;border-color:#d6deeb}
+.card .nm{cursor:pointer;display:block;max-width:none;white-space:nowrap;overflow:visible;transition:color .15s,transform .1s}
+.card .nm:hover{color:var(--pri)}
+.card .nm:active{transform:scale(.98)}
+
+/* 统计条 */
+.stats{display:flex;align-items:center;gap:10px;padding:10px 0;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:5px 12px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub)}
+.stat .n{font-size:14px;font-weight:700;line-height:1;color:var(--text)}
+.stat .l{font-size:12px}
+.stat .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.run{background:var(--ok)} .dot.stop{background:var(--warn)} .dot.new{background:var(--off)}
+
+/* 主区 */
+.wrap{padding:10px 0 40px;max-width:none;margin:0 auto}
+.err{background:#fef2f2;border:1px solid #fecaca;color:var(--danger);padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;display:none;word-break:break-all;max-height:120px;overflow:auto}
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+@media(min-width:760px){.grid{grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;transition:.18s;box-shadow:0 1px 3px rgba(15,23,42,.04);position:relative}
+.card:hover{box-shadow:0 6px 20px rgba(15,23,42,.08);transform:translateY(-1px);border-color:#c7d2e4}
+.card .top{display:flex;align-items:center;gap:12px;padding-right:92px}
+.card .sp2{display:none}
+.card .sw{position:absolute;bottom:12px;right:14px;display:inline-block;width:44px;height:24px;flex:none}
+.card .sw input{opacity:0;width:0;height:0;position:absolute}
+.card .sw .sl{position:absolute;inset:0;background:#cbd5e1;border-radius:24px;transition:.2s;cursor:pointer}
+.card .sw .sl:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.card .sw input:checked + .sl{background:var(--ok)}
+.card .sw input:checked + .sl:before{transform:translateX(20px)}
+.card .cpcard{position:absolute;top:12px;right:48px;flex:none;width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:13px;line-height:1;cursor:pointer;color:#2563eb;display:flex;align-items:center;justify-content:center;transition:.15s}
+.card .cpcard:hover{background:#eff6ff;border-color:#bfdbfe}
+.card .delcard{position:absolute;top:12px;right:12px;flex:none;width:28px;height:28px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:13px;line-height:1;cursor:pointer;color:#ef4444;display:flex;align-items:center;justify-content:center;transition:.15s}
+.card .delcard:hover{background:#fef2f2;border-color:#fecaca}
+.card .avatar{width:44px;height:44px;border-radius:10px;background:var(--pri-soft);color:var(--pri);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.card .mid{flex:1;min-width:0}
+.card .nm{font-size:15.5px;font-weight:700;line-height:1.3}
+.upbadge{display:inline-block;background:#c5c5c5;color:#fff;font-size:11px;line-height:1;padding:3px 6px;border-radius:8px;cursor:default;vertical-align:middle;font-weight:700;white-space:nowrap;pointer-events:none;flex-shrink:0}.upbadge.on{background:#4caf50;cursor:pointer;pointer-events:auto}.upbadge.chk{background:#f0ad4e}.upbadge.err{background:#e53935}
+#upLog{display:block;min-height:50px;max-height:140px;overflow:auto;margin-top:8px;background:#10131a;border:1px solid #2a3040;border-radius:8px;padding:8px 10px;font:12px/1.6 Consolas,Menlo,monospace;color:#9fb3c8;white-space:pre-wrap;word-break:break-all}
+#upLog .ul{color:#9fb3c8}
+#upLog .ul.ok{color:#56d364}
+#upLog .ul.err{color:#ff7b72}
+#upLog .ul.act{color:#7ab8ff}
+.card.stopped{opacity:.6;filter:grayscale(.85)}
+.card.stopped .nm,.card.stopped .nm-sub{color:#9aa4b5}
+.card.stopped .avatar{background:#cfd6e4;color:#7d8798}
+.card .nm-sub{font-size:12px;color:#8a94a6;white-space:nowrap;line-height:1.3;margin-top:1px}
+.card .st{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;flex-wrap:nowrap;min-width:0}
+.card .st .dot{width:8px;height:8px;flex-shrink:0}
+.card .st .txt{white-space:nowrap}
+.card .st .txt.run{color:var(--ok)} .card .st .txt.stop{color:var(--off)} .card .st .txt.new{color:var(--warn)}
+.card .foldbtn{display:none}
+.card.folded .meta{display:none}
+.card .meta{color:var(--sub);font-size:12px;line-height:1.7;word-break:break-all;border-top:1px dashed #eef2f7;margin-top:4px;padding-top:8px}
+.card .meta .row{display:flex;gap:6px}
+.card .meta .row .k{color:#94a3b8;flex-shrink:0}
+.card .ops{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:auto}
+.card .ops .btn{justify-content:center;padding:7px 2px;font-size:12px;border-radius:6px}
+.card .ops .btn.up{color:var(--ok)} .card .ops .btn.up:hover{border-color:var(--ok);background:#f0fdf4}
+.card .ops .btn.dn{color:var(--off)} .card .ops .btn.dn:hover{border-color:var(--off);background:#f8fafc}
+.card .ops .btn.rs{color:var(--pri)} .card .ops .btn.rs:hover{border-color:var(--pri);background:#eff6ff}
+.card .ops .btn.upg{color:var(--ok);font-weight:600} .card .ops .btn.upg:hover{border-color:var(--ok);background:#f0fdf4}
+.card .ops .btn.dg{color:var(--warn);font-weight:600} .card .ops .btn.dg:hover{border-color:var(--warn);background:#fff7ed}
+.card .ops .btn.lg{color:var(--txt)} .card .ops .btn.lg:hover{border-color:#94a3b8}
+.card .ops .btn.ed{color:var(--warn)} .card .ops .btn.ed:hover{border-color:var(--warn);background:#fff7ed}
+.card .ops .btn.mv{color:var(--pri)} .card .ops .btn.mv:hover{border-color:var(--pri);background:#eff6ff}
+.card .ops .btn.del{color:var(--danger)} .card .ops .btn.del:hover{border-color:var(--danger);background:#fef2f2}
+
+/* 项目信息弹窗（替代卡片折叠，工具栏"信息"按钮触发） */
+#infoBody .row{display:flex;gap:6px;font-size:13px;line-height:1.7;padding:7px 0;border-bottom:1px dashed #eef2f7}
+#infoBody .row:last-child{border-bottom:none}
+#infoBody .row .k{color:#94a3b8;flex-shrink:0;min-width:62px}
+#infoBody .row span:last-child{word-break:break-all;flex:1;color:var(--txt)}
+
+.empty{text-align:center;color:var(--sub);padding:70px 20px}
+.empty .big{font-size:52px;margin-bottom:14px;opacity:.7}
+.empty .t{font-size:15px;font-weight:600;color:var(--txt);margin-bottom:6px}
+.empty .s{font-size:13px;line-height:1.8}
+.empty .s code{background:#eef2f7;padding:2px 8px;border-radius:4px}
+.loading{text-align:center;color:var(--sub);padding:50px 0}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #dbe2ee;border-top-color:var(--pri);border-radius:50%;animation:r .8s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes r{to{transform:rotate(360deg)}}
+
+/* 弹窗 */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.overlay.show{display:flex}
+#ovWorkLog{z-index:150}
+/* 日志窗口统一高度 500px */
+#ovWorkLog #wlContent,#ovAuLog #auLogContent{height:500px;max-height:500px}
+#ovLog #logText{height:500px}
+.dialog{background:#fff;border-radius:12px;width:min(820px,96vw);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(15,23,42,.25)}
+.dialog.sm{width:min(460px,94vw)}
+.dialog.wide{width:min(1200px,97vw);max-height:96vh}
+.dialog .dh{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid rgba(0,0,0,.12);background:var(--pri);color:#fff;flex-shrink:0;flex-wrap:nowrap}
+.dialog .dh h3{font-size:15px;font-weight:600;flex:1;min-width:0;word-break:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff}
+.dialog .taskstate{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#1a73e8;background:rgba(26,115,232,.10);padding:3px 10px;border-radius:10px;width:fit-content;margin-bottom:8px}
+.dialog .dh .x{width:28px;height:28px;border:none;background:none;font-size:18px;color:rgba(255,255,255,.85);cursor:pointer;border-radius:6px}
+.dialog .dh .x:hover{background:rgba(255,255,255,.16);color:#fff}
+.dialog .dh .x.min{margin-right:4px;font-size:16px;line-height:1}
+.dialog .dh .x.paste{width:auto;padding:0 10px;height:26px;font-size:12px;border-radius:6px;background:rgba(255,255,255,.16);color:#fff;line-height:1}
+.dialog .dh .x.paste.on{background:#fff;color:var(--pri);font-weight:600}
+.dialog .dh .x.paste.off{opacity:.35}
+.dialog .dh .sp{flex:1}
+/* 弹窗最小化后台运行小条 */
+.minbar{position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;display:flex;flex-wrap:wrap;gap:8px;pointer-events:none}
+.minchip{pointer-events:auto;display:inline-flex;align-items:center;gap:7px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 14px rgba(15,23,42,.18);padding:7px 10px;font-size:12px;cursor:pointer;max-width:300px}
+.minchip .mt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.minchip .mx{color:var(--sub);font-size:14px;line-height:1;padding:0 2px}
+.minchip .mx:hover{color:#dc2626}
+/* 进度条 */
+.pbar{position:relative;height:8px;background:#e2e8f0;border-radius:6px;margin-top:12px}
+.pbar .pf{position:absolute;left:0;top:0;bottom:0;background:#2563eb;border-radius:6px;transition:width .25s}
+.pbar .pt{position:absolute;right:0;top:-16px;font-size:11px;color:var(--sub);white-space:nowrap}
+/* 共享挂载路径标注 */
+.shv{background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:0 4px}
+.shv .shb{font-style:normal;font-size:10px;color:#b45309;margin-left:4px;border:1px solid #f59e0b;border-radius:4px;padding:0 3px;background:#fff}
+.dialog .db{padding:16px 18px;overflow:auto;flex:1;min-height:0}
+.dialog .db.noscroll{overflow:auto;display:flex;flex-direction:column}
+.dialog .df{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line)}
+.dialog label{display:block;font-size:13px;color:var(--sub);margin-bottom:6px}
+.dialog label.req::after{content:" *";color:var(--danger)}
+.dialog input[type=text],.dialog select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:#fff}
+.dialog input[type=text]:focus,.dialog select:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(61,95,156,.12)}
+.dialog input[type=text].ro{background:#f8fafc;color:var(--sub)}
+.field{margin-bottom:14px}
+.tip{color:var(--sub);font-size:12px;margin-top:8px;line-height:1.7}
+.tip code{background:#eef2f7;padding:1px 6px;border-radius:4px;font-size:11px}
+.nfields{flex-shrink:0}
+.row3{display:grid;grid-template-columns:1.1fr 1fr 1.7fr;gap:10px;align-items:start}
+.row3 .field{margin-bottom:10px}
+
+/* 来源单选 */
+.src{display:flex;gap:10px;flex-wrap:wrap}
+.src .opt{flex:1;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:8px;font-size:13px}
+.src .opt.on{border-color:var(--pri);background:var(--pri-soft);color:var(--pri);font-weight:600}
+.src .opt .rad{width:16px;height:16px;border:2px solid #cbd5e1;border-radius:50%;flex-shrink:0;position:relative}
+.src .opt.on .rad{border-color:var(--pri)}
+.src .opt.on .rad::after{content:"";position:absolute;inset:3px;background:var(--pri);border-radius:50%}
+.cb{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--txt)}
+.cb input[type=checkbox]{vertical-align:middle;margin:0;flex-shrink:0}
+.cb input{width:16px;height:16px;accent-color:var(--pri)}
+
+/* 通用文本区 */
+textarea.code{width:100%;height:100%;min-height:200px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.6;padding:12px;border:1px solid var(--line);border-radius:8px;resize:vertical;background:#0f172a;color:#e2e8f0;white-space:pre;tab-size:2;outline:none}
+textarea.code.ro{background:#1e293b;color:#cbd5e1}
+textarea.tasklog{width:100%;height:320px;min-height:200px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:12px;border:1px solid var(--line);border-radius:8px;background:#0f172a;color:#e2e8f0;white-space:pre-wrap;word-break:break-all;resize:vertical}
+.uploadbox{border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center;color:var(--sub);font-size:13px;cursor:pointer;transition:.15s}
+.uploadbox:hover{border-color:var(--pri);color:var(--pri);background:#f8fafc}
+.uploadbox .fn{color:var(--txt);font-weight:600;word-break:break-all;margin-top:4px}
+
+/* 两列编辑（弹窗内占剩余高度，左右各自滚动） */
+.edit2col{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:16px;align-items:stretch;flex:none;margin-top:4px}
+.colL{height:100%;overflow:auto;padding-right:4px}
+.colR{height:auto;overflow:visible}.colR textarea.code{height:640px;flex:none;resize:none}
+.mp-list{display:flex;flex-direction:column;gap:4px;max-height:96px;overflow-y:auto}
+.mp-item{display:flex;align-items:center;gap:4px;font-size:12px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.mp-item input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:12px;color:var(--txt)}
+.mp-item.ro{color:#94a3b8;background:#f1f5f9;cursor:not-allowed}
+.mp-item .mp-none{color:#cbd5e1;font-size:12px;padding:3px 0}
+.svc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;margin-bottom:12px}
+.svc-h{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f1f5f9;border-bottom:1px solid var(--line);font-weight:600;font-size:13.5px}
+.svc-h .svc-nm{flex:1;word-break:break-all}
+.svc .body{padding:12px}
+.frm .row{margin-bottom:10px}
+.frm .row label{font-size:12px;color:var(--sub);margin-bottom:4px;display:block}
+.frm .row input,.frm .row select{width:100%;padding:7px 10px;border:1px solid var(--line);border-radius:6px;font-size:13px}
+.frm .row input:focus,.frm .row select:focus{outline:none;border-color:var(--pri)}
+.grp{border:1px solid #eef2f7;background:#fafbfc;border-radius:8px;padding:10px;margin-bottom:10px}
+.grp-h{font-size:12px;color:var(--sub);margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.grp-h .cnt{color:#94a3b8;font-size:11px}
+.grp .item{display:flex;gap:6px;margin-bottom:6px;align-items:center}
+.grp .item input{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12.5px;font-family:ui-monospace,Consolas,monospace}
+.grp .item .sep{color:#94a3b8;flex-shrink:0}
+.mini{border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px 9px;font-size:11.5px;cursor:pointer;color:var(--sub);flex-shrink:0}
+.mini:hover{border-color:var(--pri);color:var(--pri)}
+.mini.del:hover{border-color:var(--danger);color:var(--danger)}
+.mini.add{width:100%;margin-top:2px;color:var(--pri);border-style:dashed}
+.mini.add:hover{background:var(--pri-soft)}
+
+.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:200;display:none;max-width:82vw;word-break:break-all;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.toast.show{display:block}
+.toast.err{background:var(--danger)}
+
+@media(max-width:760px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .card .ops{grid-template-columns:repeat(3,1fr)}
+  .toolbar{padding:12px 12px;gap:5px}
+  .toolbar .tt{font-size:16px;white-space:nowrap}
+  .toolbar .tt>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .toolbar .btns{gap:6px;flex-wrap:wrap}
+  .toolbar .stats{flex-wrap:wrap}
+  .toolbar .btn{font-size:13px;padding:7px 10px;white-space:nowrap}
+  .dialog .db.noscroll{overflow-y:auto;display:flex;flex-direction:column}
+  .edit2col{display:block;flex:none}
+  .colL{height:auto;max-height:38vh;overflow:auto;margin-bottom:12px}
+  .colR{height:auto}
+  .colR textarea.code{height:420px;resize:none}
+}
+.opbar{display:flex;flex-direction:column;gap:20px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:10px 0 16px;font-size:13px}
+.opbar .ophead{display:flex;align-items:center;gap:12px}
+.opbar .selcnt{color:var(--sub)}
+.opbtns{display:flex;justify-content:space-between;gap:8px;width:100%}
+.opbtns .btn{flex:1 1 0;min-width:0}
+.opbar .btn{font-size:12px;padding:10px 4px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:4px;width:100%}
+.opbtns .btn:disabled{opacity:.38;cursor:not-allowed}
+.opbtns .btn.del{color:var(--danger)}
+.card.selon{border-color:var(--pri);box-shadow:0 0 0 2px rgba(61,95,156,.15)}
+.card.selon .top{background:#f0f5ff}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="tt"><span>Docker Compose <span class="ver" id="appVer"></span></span><button class="autoup off" id="btnAutoUp" title="设置自动更新计划">🔁 自动更新</button></div>
+  <div class="path" id="compPath">正在获取 Docker Compose 根目录…</div>
+  <div class="desc">Docker Compose 项目管理：通过它可以安装和管理项目，让项目管理变得更简单和高效！</div>
+  <div class="stats">
+    <div class="stat"><span class="dot new"></span><span class="n" id="stAll">0</span><span class="l">项目</span></div>
+    <div class="stat"><span class="dot run"></span><span class="n" id="stRun">0</span><span class="l">运行</span></div>
+    <div class="stat"><span class="dot stop"></span><span class="n" id="stStop">0</span><span class="l">停止</span></div>
+    <button class="btn ghost" id="btnSync" style="padding:5px 14px;font-size:12px" disabled title="无同步任务">同步</button>
+  </div>
+  <div class="btns">
+    <button class="btn pri" id="btnNew">＋ 新建</button>
+    <button class="btn ghost" id="btnSettings">⚙ 设置</button>
+    <button class="btn ghost" id="btnRefresh">↻ 刷新</button>
+    <button class="btn ghost" id="btnCopy" disabled>📋 复制代码</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="err" id="errBox"></div>
+  <div id="listBox"><div class="loading"><span class="spin"></span>加载中…</div></div>
+
+  <div class="opbar" id="opBar">
+    <div class="ophead">
+      <label class="cb" style="margin:0"><input type="checkbox" id="selAll">全选</label>
+      <span class="selcnt" id="selCnt">已选 0</span>
+    </div>
+    <div class="opbtns" id="opBtns">
+      <button class="btn ghost" data-op="restart">重启</button>
+      <button class="btn ghost" data-op="move">移动</button>
+      <button class="btn ghost" data-op="upgrade">更新</button>
+      <button class="btn ghost" data-op="edit">编辑</button>
+      <button class="btn ghost" data-op="logs">日志</button>
+      <button class="btn ghost" data-op="info">信息</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新建项目弹窗（单排字段 + 代码窗 + 映射路径/端口） -->
+<div class="overlay" id="ovNew">
+  <div class="dialog wide">
+    <div class="dh"><h3>创建项目</h3><button class="x paste off" id="btnNewPaste" title="粘贴代码到代码窗口">📋 粘贴代码</button><button class="x min" id="btnNewMin" title="最小化后台运行">–</button><button class="x" id="btnNewClose">×</button></div>
+    <div class="db noscroll">
+      <div class="nfields">
+        <div class="field">
+          <label class="req">项目名称</label>
+          <input type="text" id="newName" placeholder="可输入中文，自动转拼音" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>目录名</label>
+          <input type="text" id="newDirName" placeholder="自动生成拼音，可改" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>路径</label>
+          <input type="text" id="newPath" readonly class="ro">
+        </div>
+        <div class="field" style="margin-bottom:10px">
+          <label>来源</label>
+          <div class="src">
+            <div class="opt on" id="srcCreate" onclick="setSrc('create')"><span class="rad"></span>创建 docker-compose.yml</div>
+            <div class="opt" id="srcUpload" onclick="setSrc('upload')"><span class="rad"></span>上传 docker-compose.yml</div>
+          </div>
+        </div>
+        <div class="field" id="fldUp" style="display:none;margin-bottom:10px">
+          <label>选择文件</label>
+          <div class="uploadbox" id="upBox">
+            <div>点击选择 docker-compose.yml 文件</div>
+            <div class="fn" id="upFn"></div>
+          </div>
+          <input type="file" id="upFile" accept=".yml,.yaml" style="display:none">
+        </div>
+      </div>
+      <textarea class="code" id="newCode" spellcheck="false" placeholder="# 在此粘贴/输入 compose 配置" style="height:345px;flex:none"></textarea>
+      <div class="nfields" style="margin-top:10px">
+        <div class="field">
+          <label>容器名</label>
+          <div class="mp-list" id="newNameRow"></div>
+        </div>
+        <div class="field">
+          <label>映射路径</label>
+          <div class="mp-list" id="newMaps"></div>
+        </div>
+        <div class="field">
+          <label>端口</label>
+          <div class="mp-list" id="newPorts"></div>
+        </div>
+      </div>
+      <div class="tip" style="flex-shrink:0;margin-top:10px">
+        <label class="cb"><input type="checkbox" id="newAutoPorts" checked>自动添加端口</label>
+        <label class="cb"><input type="checkbox" id="newAutoName" checked>自动修改容器名</label>
+        <label class="cb"><input type="checkbox" id="newAutoMap" checked>自动映射挂载路径到项目目录</label>
+        <label class="cb"><input type="checkbox" id="newStart">创建项目后立即启动</label>
+        <div style="margin-top:8px"><label style="margin:0 0 4px">自定义映射目录（可选）</label><input type="text" id="newMapDir" placeholder="留空则映射到项目目录（./最后一级），如 /mnt/usb1_2-1/Docker Compose/data" autocomplete="off"></div>
+        <div>将在 <code id="newDirTip"></code> 下创建目录并写入 docker-compose.yml。</div>
+        <div>自动映射：粘贴代码里的挂载路径若是绝对路径（如 /share/Container/...），会自动改为项目目录下的相对路径（./最后一级），避免本机没有该目录。</div>
+      </div>
+    </div>
+    <div class="df"><button class="btn" id="btnNewCancel">取消</button><button class="btn pri" id="btnNewOk">确认</button></div>
+  </div>
+</div>
+
+<!-- 粘贴代码确认弹窗 -->
+<div class="overlay" id="ovPaste">
+  <div class="dialog sm">
+    <div class="dh"><h3>粘贴代码</h3><button class="x" id="btnPasteClose">×</button></div>
+    <div class="db"><div style="font-size:13px;line-height:1.8">确认从剪贴板粘贴代码？<br>确认后将<b>清空当前代码窗口</b>并聚焦，由于浏览器安全限制（HTTP 页面无法自动读取剪贴板），请在聚焦后按 <b>Ctrl+V</b> 粘贴。</div></div>
+    <div class="df"><button class="btn" id="btnPasteCancel">取消</button><button class="btn pri" id="btnPasteOk">确认粘贴</button></div>
+  </div>
+</div>
+
+<!-- 操作进度弹窗 -->
+<div class="overlay" id="ovTask">
+  <div class="dialog">
+    <div class="dh"><h3 id="taskTitle">操作</h3><button class="x min" id="btnTaskMin" title="最小化后台运行">–</button><button class="x" id="btnTaskClose" title="关闭">×</button></div>
+    <div class="db">
+      <div class="taskstate" id="taskState" style="margin:0 0 8px"></div>
+      <textarea class="tasklog" id="taskLog" readonly></textarea>
+    </div>
+    <div class="df"><button class="btn" id="btnTaskCopy" title="复制日志内容">📋 复制</button><span class="sp"></span><button class="btn" id="btnTaskCancel">取消</button></div>
+  </div>
+</div>
+
+<!-- 日志弹窗 -->
+<div class="overlay" id="ovLog">
+  <div class="dialog">
+    <div class="dh"><h3 id="logTitle">日志</h3><button class="btn" id="btnLogRefresh">↻ 刷新</button><button class="x" id="btnLogClose2">×</button></div>
+    <div class="db"><textarea class="code ro" id="logText" readonly></textarea></div>
+    <div class="df"><button class="btn" id="btnLogCopy" title="复制日志内容">📋 复制</button><span class="sp"></span><button class="btn" id="btnLogClose">关闭</button></div>
+  </div>
+</div>
+
+<!-- 工作日志弹窗（设置 → 查看日志） -->
+<div class="overlay" id="ovWorkLog">
+  <div class="dialog wide">
+    <div class="dh"><h3>工作日志</h3><button class="x" id="btnWorkLogClose">×</button></div>
+    <div class="db">
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+        <select id="wlSource" style="flex:1;min-width:140px">
+          <option value="ops">操作日志（更新/创建/复制/删除/移动/同步/报错）</option>
+          <option value="autoup">自动更新日志</option>
+        </select>
+        <select id="wlType" style="flex:1;min-width:140px">
+          <option value="">全部类型</option>
+          <option>更新</option><option>创建</option><option>复制</option>
+          <option>删除</option><option>移动</option><option>同步</option><option>编辑</option><option>停止</option><option>启动</option><option>重启</option>
+        </select>
+        <button class="btn" id="btnWorkLogRefresh">↻ 刷新</button>
+      </div>
+      <pre id="wlContent" style="max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-all;font-size:12px;line-height:1.5;background:#0f172a;color:#cbd5e1;padding:10px;border-radius:8px;margin:0">加载中…</pre>
+    </div>
+    <div class="df"><button class="btn" id="btnWorkLogCopy" title="复制日志内容">📋 复制</button><span class="sp"></span><button class="btn pri" id="btnWorkLogOk">关闭</button></div>
+  </div>
+</div>
+
+<!-- 编辑弹窗（左右两列：中文表单 + 实时代码） -->
+<div class="overlay" id="ovEdit">
+  <div class="dialog wide">
+    <div class="dh"><h3 id="editTitle">编辑</h3><button class="x min" id="btnEditMin" title="最小化后台运行">–</button><button class="x" id="btnEditClose">×</button></div>
+    <div class="db noscroll">
+      <div class="edit2col">
+        <div class="colL" id="editForm"></div>
+        <div class="colR"><textarea class="code" id="editText" spellcheck="false"></textarea></div>
+      </div>
+      <div class="tip" style="flex-shrink:0;margin-top:10px">← 左侧中文表单与右侧代码实时双向同步（端口/时区/映射/环境变量/其他配置均可改）。保存后需重新「启动」使改动生效。</div>
+    </div>
+    <div class="df"><button class="btn" id="btnEditCancel">取消</button><button class="btn pri" id="btnEditSave">保存</button></div>
+  </div>
+</div>
+
+<!-- 移动项目弹窗 -->
+<div class="overlay" id="ovMove">
+  <div class="dialog sm">
+    <div class="dh"><h3>移动项目（更改路径）</h3><button class="x" id="btnMoveClose">×</button></div>
+    <div class="db">
+      <div class="field">
+        <label>当前路径</label>
+        <input type="text" id="moveCur" readonly class="ro">
+      </div>
+      <div class="field">
+        <label>新路径（绝对路径）</label>
+        <input type="text" id="moveNew" placeholder="/mnt/usb1_2-2/compose/daidai-panel" autocomplete="off">
+      </div>
+      <div class="tip">将先停止容器，再移动整个项目目录，并自动在新路径重新启动。目标路径不能已存在。<br>若新路径在 Compose 根目录外，项目会从列表消失，需在「⚙ 目录」中把根目录改为新位置。</div>
+    </div>
+    <div class="df"><button class="btn" id="btnMoveCancel">取消</button><button class="btn pri" id="btnMoveOk">确认移动</button></div>
+  </div>
+</div>
+
+<!-- 更新弹窗（版本选择：latest / 指定版本号） -->
+<div class="overlay" id="ovUp">
+  <div class="dialog sm">
+    <div class="dh"><h3>更新项目</h3><button class="x min" id="btnUpMin" title="最小化后台运行">–</button><button class="x" id="btnUpClose">×</button></div>
+    <div class="db">
+      <div class="field">
+        <label>当前镜像</label>
+        <input type="text" id="upCur" readonly class="ro">
+      </div>
+      <div class="field">
+        <label>设备架构</label>
+        <input type="text" id="upArch" readonly class="ro" value="检测中…">
+      </div>
+      <div class="field">
+        <label>目标版本（下拉选择）</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="upTags" style="flex:1;min-width:0"><option value="">— 点击查询加载版本 —</option></select>
+          <button class="btn" id="btnUpQuery" style="flex-shrink:0">查询</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>或手动输入版本 Tag（无需 v 前缀）</label>
+        <input type="text" id="upTagManual" placeholder="例如 3.3.7 或 latest（无需 v 前缀）" autocomplete="off">
+      </div>
+      <div class="tip">选择「latest（跟随最新）」更新到最新版，之后自动更新可持续拉新；选择或输入具体版本号则固定在该版本。将修改 docker-compose.yml 并重新拉取、启动容器。更新前会校验版本是否支持当前设备架构，不支持的版本会被拦截。</div>
+      <div id="upTip" style="display:none;margin-top:8px;border:1px solid #34c759;background:rgba(52,199,89,.08);color:#2e7d32;padding:8px 10px;border-radius:8px;line-height:1.5"></div>
+      <div id="upLog"></div>
+    </div>
+    <div class="df"><button class="btn" id="btnUpCopy" title="复制日志内容">📋 复制</button><span class="sp"></span><button class="btn" id="btnUpCancel">取消</button><button class="btn pri" id="btnUpOk">确认更新</button></div>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div class="overlay" id="ovSet">
+  <div class="dialog sm">
+    <div class="dh"><h3>设置</h3><button class="x" id="btnSetClose">×</button></div>
+    <div class="db">
+      <label>Compose 项目根目录</label>
+      <input type="text" id="setDir" placeholder="/mnt/usb1_2-1/compose" autocomplete="off">
+      <div class="tip">插件扫描该目录下每个子目录，识别 docker-compose.yml / compose.yaml 作为 compose 项目。<br>目录不存在时会自动创建。</div>
+      <label style="margin-top:14px">默认映射目录（可选）</label>
+      <input type="text" id="setMapDir" placeholder="留空则用项目目录相对路径（./最后一级）" autocomplete="off">
+      <div class="tip">新建项目时自动映射挂载路径的默认目录；新建弹窗里也可单独修改。</div>
+      <label style="margin-top:14px">镜像检查加速地址</label>
+      <label class="cb" style="margin:8px 0 2px"><input type="checkbox" id="setMirrorAuto" checked>自动同步系统镜像加速源（dockerd / daemon.json 配置）</label>
+      <div id="setMirrorBox"></div>
+      <button class="btn" id="btnMirrorAdd" style="margin-top:8px;padding:6px 12px;font-size:12px">＋ 添加加速地址</button>
+      <div class="tip">勾选后自动读取系统已配置的镜像加速源（N1 上为 dockerd 的 3 个），系统配置变更插件自动跟随，无需手动同步。取消勾选可手动填写多行地址（留空全部则使用默认 3 个）。注意：这里仅用于<u>检查更新</u>；<u>拉取/升级</u>镜像走系统镜像加速源，两者独立互不影响。</div>
+      <div style="margin-top:14px;border-top:1px solid #eee;padding-top:12px"><a href="javascript:void(0)" id="btnOpenLog" style="color:var(--pri,#1a73e8);font-size:13px;text-decoration:none">📄 查看工作日志（升级/降级/自动更新/创建/复制/删除/报错）</a></div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--sub)" id="logSizeInfo">日志大小：--</span>
+        <button class="btn" id="btnClearOps" style="padding:6px 10px;font-size:12px">清空操作日志</button>
+        <button class="btn" id="btnClearAu" style="padding:6px 10px;font-size:12px">清空自动更新日志</button>
+      </div>
+      <div style="margin-top:14px;border-top:1px solid #eee;padding-top:12px">
+        <label class="cb"><input type="checkbox" id="setAutoCleanLog">自动清理日志缓存</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <span style="font-size:13px;color:var(--sub)">保留最近</span>
+          <input type="number" id="setLogKeepDays" min="1" max="365" value="7" style="width:70px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+          <span style="font-size:13px;color:var(--sub)">天，自动清理更早日志</span>
+        </div>
+        <div class="tip">开启后每天自动删除超过保留天数的日志记录，防止日志无限增长（仅清理工作日志，自动更新日志不受影响）。</div>
+      </div>
+    </div>
+    <div class="df"><button class="btn" id="btnSetCancel">取消</button><button class="btn pri" id="btnSetSave">保存</button></div>
+  </div>
+</div>
+
+<!-- 自动更新计划弹窗 -->
+<div class="overlay" id="ovAutoUp">
+  <div class="dialog sm">
+    <div class="dh"><h3>自动更新计划</h3><button class="x" id="btnAuClose">×</button></div>
+    <div class="db">
+      <label class="cb" style="margin-bottom:10px"><input type="checkbox" id="auEnabled">启用自动更新</label>
+      <label>更新模式</label>
+      <select id="auFreq" style="width:100%;margin-bottom:10px">
+        <option value="daily">每天</option>
+        <option value="weekly">每周</option>
+        <option value="interval">每隔自定义时间</option>
+      </select>
+      <div id="auDaysBox" style="display:none">
+        <label>选择星期</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px" id="auDays">
+          <label class="cb" style="margin:0"><input type="checkbox" value="1">周一</label>
+          <label class="cb" style="margin:0"><input type="checkbox" value="2">周二</label>
+          <label class="cb" style="margin:0"><input type="checkbox" value="3">周三</label>
+          <label class="cb" style="margin:0"><input type="checkbox" value="4">周四</label>
+          <label class="cb" style="margin:0"><input type="checkbox" value="5">周五</label>
+          <label class="cb" style="margin:0"><input type="checkbox" value="6">周六</label>
+          <label class="cb" style="margin:0"><input type="checkbox" value="7">周日</label>
+        </div>
+      </div>
+      <div id="auIntervalBox" style="display:none">
+        <label>间隔时间（0:0 表示不启用该模式）</label>
+        <div style="display:flex;align-items:center;gap:8px;margin:4px 0 10px">
+          <input type="number" id="auIntH" min="0" max="23" value="0" list="auIntHList" style="width:70px;flex-shrink:0">
+          <span style="font-size:13px">时</span>
+          <input type="number" id="auIntM" min="0" max="59" value="30" list="auIntMList" style="width:70px;flex-shrink:0">
+          <span style="font-size:13px">分</span>
+        </div>
+        <datalist id="auIntHList"><option value="0"><option value="1"><option value="2"><option value="3"><option value="4"><option value="6"><option value="8"><option value="12"><option value="18"><option value="23"></datalist>
+        <datalist id="auIntMList"><option value="0"><option value="1"><option value="5"><option value="10"><option value="15"><option value="20"><option value="30"><option value="45"></datalist>
+      </div>
+      <div id="auTimeBox">
+        <label>升级时间（可添加多个时间点）</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="time" id="auTime" value="02:30" list="auTimeList" style="flex:1;min-width:0">
+          <button class="btn" id="btnAuTimeAdd" style="flex-shrink:0">+ 添加</button>
+        </div>
+        <div id="auTimeChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px"></div>
+        <datalist id="auTimeList"><option value="00:00"><option value="01:00"><option value="02:00"><option value="02:30"><option value="03:00"><option value="04:00"><option value="05:00"><option value="06:00"><option value="08:00"><option value="12:00"><option value="18:00"><option value="20:00"><option value="23:00"></datalist>
+      </div>
+      <div class="tip">每天/每周模式在设定时间自动更新；「每隔自定义时间」按间隔时:分自动检测并更新（填 0:0 表示不启用该模式）。更新不会改动项目端口等配置，完成后自动清理老镜像。</div>
+      <div style="margin-top:10px"><a href="javascript:void(0)" id="btnAuLog" style="color:var(--pri,#1a73e8);font-size:13px;text-decoration:none">📄 查看升级日志</a></div>
+    </div>
+    <div class="df"><button class="btn" id="btnAuCancel">取消</button><button class="btn pri" id="btnAuSave">保存</button></div>
+  </div>
+</div>
+
+<!-- 自动更新日志弹窗 -->
+<div class="overlay" id="ovAuLog">
+  <div class="dialog">
+    <div class="dh"><h3>自动更新日志</h3><button class="x" id="btnAuLogClose">×</button></div>
+    <div class="db">
+      <pre id="auLogContent" style="max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-all;font-size:12px;line-height:1.5;background:#0f172a;color:#cbd5e1;padding:10px;border-radius:8px;margin:0">加载中…</pre>
+    </div>
+    <div class="df"><button class="btn" id="btnAuLogCopy" title="复制日志内容">📋 复制</button><span class="sp"></span><button class="btn" id="btnAuLogRefresh">↻ 刷新</button><button class="btn pri" id="btnAuLogOk">关闭</button></div>
+  </div>
+</div>
+
+<!-- 删除确认弹窗 -->
+<div class="overlay" id="ovDel">
+  <div class="dialog sm">
+    <div class="dh"><h3>删除项目</h3><button class="x" id="btnDelClose">×</button></div>
+    <div class="db">
+      <div class="tip" id="delTip">将删除所选项目的 compose 配置。</div>
+      <label class="cb" style="margin-top:8px"><input type="checkbox" id="delKeepContainer" checked>删除项目但保留容器运行（默认勾选，防止误删容器）</label>
+      <label class="cb" style="margin-top:8px"><input type="checkbox" id="delKeepData" checked>保留项目目录与数据（推荐，方便恢复）</label>
+      <div class="tip" style="margin-top:6px">取消「保留容器」勾选将停止并删除容器；取消「保留目录」勾选将连同项目目录及所有文件一起永久删除，不可恢复。</div>
+    </div>
+    <div class="df"><button class="btn" id="btnDelCancel">取消</button><button class="btn danger" id="btnDelOk">删除</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ovCp">
+  <div class="dialog sm">
+    <div class="dh"><h3>项目代码</h3><button class="x" id="btnCpClose">×</button></div>
+    <div class="db">
+      <textarea id="cpCode" readonly class="code" style="width:100%;height:260px;box-sizing:border-box;resize:none"></textarea>
+    </div>
+    <div class="df"><button class="btn" id="btnCpCancel">关闭</button><button class="btn pri" id="btnCpCopy">复制代码</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ovCopy">
+  <div class="dialog sm">
+    <div class="dh"><h3>一键复制项目</h3><button class="x" id="btnCopyDlgClose">×</button></div>
+    <div class="db">
+      <div class="tip" id="copyTip"></div>
+      <div class="field" style="margin-top:12px">
+        <label class="req">项目名称</label>
+        <input type="text" id="copyName" placeholder="可输入中文，自动转拼音" autocomplete="off">
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label class="req">端口号</label>
+        <input type="text" id="copyPort" placeholder="如 5701" autocomplete="off">
+      </div>
+      <div class="tip" style="margin-top:10px">将复制原项目配置：容器名自动改为新项目名拼音，挂载路径自动映射到新项目目录，端口冲突时自动顺延。</div>
+      <div id="copyExtWrap" style="display:none;margin-top:10px">
+        <div class="tip">外部挂载路径（默认保持原路径共享；勾选后跟随新项目名，避免多实例配置串扰）：</div>
+        <div id="copyExtList" style="margin-top:6px;max-height:130px;overflow:auto;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:8px 10px;line-height:1.9"></div>
+      </div>
+      <div class="pbar" id="copyBar" style="display:none"><div class="pf" id="copyBarFill" style="width:0%"></div><span class="pt" id="copyBarTxt">0%</span></div>
+    </div>
+    <div class="df"><button class="btn" id="btnCopyDlgCancel">取消</button><button class="btn pri" id="btnCopyOk">确认复制</button></div>
+  </div>
+</div>
+
+<!-- 同步未托管容器确认弹窗 -->
+<div class="overlay" id="ovSync">
+  <div class="dialog sm">
+    <div class="dh"><h3>同步未托管容器</h3><button class="x" id="btnSyncClose">×</button></div>
+    <div class="db">
+      <div class="tip" id="syncTip"></div>
+      <div class="field" style="margin-top:12px">
+        <label>以下容器未被 Docker Compose 接管：</label>
+        <div class="tip" id="syncList" style="margin-top:6px;max-height:200px;overflow:auto;background:#f8fafc;border:1px solid var(--line);border-radius:8px;padding:8px 10px;line-height:1.9"></div>
+      </div>
+      <div class="tip" style="margin-top:10px">将按原配置生成 compose 项目并接管运行：停掉原容器 → 在根目录新建同名项目 → Compose 方式启动。端口、映射路径、环境变量原样保留。</div>
+      <div class="pbar" id="syncBar" style="display:none"><div class="pf" id="syncBarFill" style="width:0%"></div><span class="pt" id="syncBarTxt">0%</span></div>
+    </div>
+    <div class="df"><button class="btn" id="btnSyncCancel">取消</button><button class="btn pri" id="btnSyncOk">确认同步</button></div>
+  </div>
+</div>
+
+<!-- 修改项目备注弹窗 -->
+<div class="overlay" id="ovNote">
+  <div class="dialog sm">
+    <div class="dh"><h3>修改项目备注</h3><button class="x" id="btnNoteClose">×</button></div>
+    <div class="db">
+      <input type="text" id="noteVal" placeholder="输入新的备注名称（支持中文）" autocomplete="off" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px">
+      <div class="tip" style="margin-top:8px">备注显示在卡片名称位置；清空后恢复显示项目名。</div>
+    </div>
+    <div class="df"><button class="btn" id="btnNoteCancel">取消</button><button class="btn pri" id="btnNoteOk">保存</button></div>
+  </div>
+</div>
+
+<!-- 项目信息弹窗（工具栏"信息"按钮，单选时查看） -->
+<div class="overlay" id="ovInfo">
+  <div class="dialog">
+    <div class="dh"><h3>项目信息</h3><button class="x" id="btnInfoClose">×</button></div>
+    <div class="db noscroll" id="infoBody"></div>
+    <div class="df"><button class="btn" id="btnInfoCopy" title="复制项目信息">📋 复制</button><span class="sp"></span><button class="btn" id="btnInfoOk">关闭</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+var APP_VER = '0.6.2';
+var API = '/cgi-bin/luci/admin/docker/dockercompose/api/';
+var curDir = ''; var delPaths = []; var selectedPaths = {};
+var busy = false;
+var editPath = null, editName = null;
+var srcMode = 'create';
+var TEMPLATE = '# 在此编辑你的 compose 配置\nservices:\n  app:\n    image: your-image:latest\n    restart: unless-stopped\n';
+var movePaths = [];
+
+function $(id){ return document.getElementById(id); }
+
+function toast(msg, isErr){
+  var t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.className = 'toast'; }, isErr ? 8000 : 5000);
+}
+// 更新弹窗内常驻提示（不自动消失，直到弹窗关闭）：msg 为空隐藏
+function upTip(msg, isErr){
+  var el = $('upTip');
+  if (!msg){ el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  if (isErr){
+    el.style.borderColor = '#ff5252'; el.style.background = 'rgba(255,82,82,.08)'; el.style.color = '#d32f2f';
+  }else{
+    el.style.borderColor = '#34c759'; el.style.background = 'rgba(52,199,89,.08)'; el.style.color = '#2e7d32';
+  }
+  el.textContent = msg;
+}
+// 更新弹窗内过程日志：追加一行（cls: '' 普通 / ok 成功 / err 失败 / act 进行中）
+function upLog(line, cls){
+  var el = $('upLog');
+  if (!el) return;
+  var d = document.createElement('div');
+  d.className = 'ul' + (cls ? ' ' + cls : '');
+  d.textContent = line;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function upLogClear(){ var el = $('upLog'); if (el) el.innerHTML = ''; }
+// 渲染后端返回的步骤日志数组
+function upLogSteps(steps){
+  (steps || []).forEach(function(s){ upLog('· ' + s); });
+}
+function showErr(msg){
+  var e = $('errBox');
+  if (msg){ e.style.display = 'block'; e.textContent = msg; }
+  else { e.style.display = 'none'; e.textContent = ''; }
+}
+// 复制文本：优先 Clipboard API，失败/不可用时回退到临时 textarea + execCommand
+function copyText(txt){
+  if (!txt){ toast('没有可复制的内容', true); return; }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ toast('已复制'); }, function(){ fallbackCopy(txt); });
+  } else {
+    fallbackCopy(txt);
+  }
+}
+function fallbackCopy(txt){
+  var ta = document.createElement('textarea');
+  ta.value = txt;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); toast('已复制'); }
+  catch(e){ toast('复制失败，请手动选择复制', true); }
+  document.body.removeChild(ta);
+}
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function cleanLog(s){
+  s = String(s || '');
+  s = s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '');
+  s = s.replace(/\x1b\][^\x07]*\x07/g, '');
+  s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  var lines = s.split('\n');
+  var out = [];
+  for (var i = 0; i < lines.length; i++){
+    var l = lines[i].replace(/[ \t]+$/,'');
+    if (l === '' && out.length && out[out.length-1] === '') continue;
+    out.push(l);
+  }
+  return out.join('\n');
+}
+
+async function api(name, params, opts){
+  var u = API + name;
+  if (params){
+    var qs = [];
+    for (var k in params) qs.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+    if (qs.length) u += '?' + qs.join('&');
+  }
+  // 请求超时兜底：后端异常卡死时前端也能恢复，避免一直转圈
+  var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var to = null;
+  if (ctl){
+    to = setTimeout(function(){ try{ ctl.abort(); }catch(e){} }, 60000);
+  }
+  var o = opts || {};
+  var r = await fetch(u, ctl ? Object.assign({}, o, {signal: ctl.signal}) : o);
+  if (to) clearTimeout(to);
+  return await r.json();
+}
+// 最小化弹窗：隐藏到后台，操作继续（任务仍在后台轮询）
+function minWin(id){
+  var el = $(id);
+  if (el) el.classList.remove('show');
+}
+
+function toPinyin(s){
+  var out = '';
+  for (var i = 0; i < s.length; i++){
+    var c = s[i];
+    if (/[a-zA-Z0-9]/.test(c)) out += c.toLowerCase();
+    else if (/[\u4e00-\u9fff]/.test(c)){
+      var py = (typeof PINYIN_MAP !== 'undefined' && PINYIN_MAP[c]) || '';
+      out += py || 'x';
+    }
+    else if (c === '_' || c === '-') out += c;
+  }
+  return out;
+}
+function validDirName(n){ return /^[a-z0-9][a-z0-9_-]*$/.test(n); }
+
+function statusOf(s){
+  s = s || '未创建';
+  var cls = 'new', txt = s;
+  if (s.indexOf('running') >= 0){ cls = 'run'; var m = s.match(/\((\d+)\)/); txt = m ? '(' + m[1] + ') 运行中' : '运行中'; }
+  else if (s.indexOf('exited') >= 0 || s.indexOf('stopped') >= 0 || s.indexOf('created') >= 0){ cls = 'stop'; }
+  return { cls: cls, txt: txt };
+}
+// docker 运行时长文本（Up 3 days / Up About an hour…）→ 中文
+function fmtUp(u){
+  if (!u) return '—';
+  var map = {second:'秒',minute:'分钟',hour:'小时',day:'天',week:'周',month:'个月',year:'年'};
+  var t = String(u).replace(/^Up\s+/i,'');
+  t = t.replace(/(\d+|an?)\s*(seconds?|minutes?|hours?|days?|weeks?|months?|years?)/gi, function(mm, n, unit){
+    var c = map[unit.toLowerCase().replace(/s$/,'')];
+    if (!c) return mm;
+    if (/^an?$/i.test(n)) return '1 ' + c;
+    return n + ' ' + c;
+  });
+  return t;
+}
+
+// ===== YAML 解析 / 生成（两列表单共用） =====
+var KNOWN_LIST = { ports:1, volumes:1, environment:1, labels:1 };
+
+function parseCompose(t){
+  var lines = String(t || '').split('\n');
+  var name = null, services = [], si = -1;
+  for (var i = 0; i < lines.length; i++){
+    var tri = lines[i].trim();
+    if (name === null && tri.indexOf('services:') !== 0){
+      var nm = tri.match(/^name:\s*(.*?)\s*$/);
+      if (nm && nm[1]) name = nm[1];
+    }
+    if (tri === 'services:'){ si = i; break; }
+  }
+  var hasSvc = si >= 0;
+  var svcIndent = hasSvc ? 2 : 0;
+  var start = hasSvc ? si + 1 : 0;
+  var cur = null;
+  var KNOWN_KEYS = /^(image|container_name|restart|command|ports|volumes|environment|labels):\s*$/;
+
+  function newSvc(nm){
+    return { name: nm, image:'', container_name:'', restart:'', command:'',
+             ports:[], volumes:[], environment:[], labels:[], other:[], otherLists:[],
+             fLines:{}, blocks:{}, _bk:null, _lst:null };
+  }
+
+  for (var i = start; i < lines.length; i++){
+    var ln = lines[i];
+    if (!ln.trim()) continue;
+    var mm = ln.match(/^(\s*)(\S.*)$/);
+    if (!mm) continue;
+    var indent = mm[1].length, content = mm[2];
+    var isListItem = /^-\s+/.test(content);
+    var isKeyOnly = /^[A-Za-z0-9_.-]+:\s*$/.test(content);
+
+    // 列表项：只要有活跃块就收集（列表项可与键同级缩进，无 services 片段同样适用）
+    if (isListItem){
+      if (cur && cur._bk){
+        var lm = content.match(/^-\s+(.+)$/);
+        var vv = lm[1].replace(/^"(.*)"$/,'$1').trim();
+        if (cur._bk === 'otherlist'){
+          var lst = cur.otherLists[cur._lst];
+          if (lst) lst.items.push({ v: vv, line:i });
+        } else if (cur.blocks[cur._bk]){
+          cur.blocks[cur._bk].items.push({ v: vv, line:i });
+        }
+      }
+      continue;
+    }
+
+    // 服务名判定
+    if (isKeyOnly && indent === svcIndent){
+      if (hasSvc){
+        if (cur) services.push(cur);
+        cur = newSvc(content.replace(/:$/,'').trim());
+        continue;
+      }
+      // 无 services：顶层键
+      if (KNOWN_KEYS.test(content)){
+        // 服务配置键 → 用户贴的是服务体，合成 app 服务，继续按配置键处理
+        if (!cur) cur = newSvc('app');
+      } else {
+        // 普通名字 → 服务名
+        if (cur) services.push(cur);
+        cur = newSvc(content.replace(/:$/,'').trim());
+        continue;
+      }
+    }
+
+    if (!cur) continue;
+    // 标准模式：服务外的顶层杂键（indent < 2）跳过；fallback 下 indent 0 的键是服务配置，不能跳过
+    if (hasSvc && indent <= svcIndent) continue;
+
+    var keym = content.match(/^([A-Za-z0-9_.-]+):\s*(.*)$/);
+    if (keym){
+      var k = keym[1], rest = keym[2].trim();
+      if (k === 'image'){ cur.image = rest; cur.fLines.image = i; cur._bk = null; cur._lst = null; }
+      else if (k === 'container_name'){ cur.container_name = rest; cur.fLines.container_name = i; cur._bk = null; cur._lst = null; }
+      else if (k === 'restart'){ cur.restart = rest; cur.fLines.restart = i; cur._bk = null; cur._lst = null; }
+      else if (k === 'command'){ cur.command = rest; cur.fLines.command = i; cur._bk = null; cur._lst = null; }
+      else if (KNOWN_LIST[k]){
+        cur.blocks[k] = { start:i, items:[], indent:indent };
+        cur._bk = k; cur._lst = null;
+      } else {
+        // 嵌套子键（正在块内且缩进更深）→ 忽略，停止收集
+        if (cur._bk && indent > svcIndent + 2){ cur._bk = null; cur._lst = null; continue; }
+        if (rest === ''){
+          cur.otherLists.push({ key:k, start:i, items:[], indent:indent });
+          cur._bk = 'otherlist'; cur._lst = cur.otherLists.length - 1;
+        } else {
+          cur.other.push({ key:k, value:rest, line:i });
+          cur._bk = null; cur._lst = null;
+        }
+      }
+    }
+  }
+  if (cur) services.push(cur);
+  return { name:name, services:services, lines:lines };
+}
+
+function svcLastLine(svc){
+  var mx = -1;
+  ['image','container_name','restart','command'].forEach(function(k){
+    if (svc.fLines[k] !== undefined) mx = Math.max(mx, svc.fLines[k]);
+  });
+  ['ports','volumes','environment','labels'].forEach(function(k){
+    var b = svc.blocks[k];
+    if (b){ mx = Math.max(mx, b.start); b.items.forEach(function(it){ mx = Math.max(mx, it.line); }); }
+  });
+  (svc.other || []).forEach(function(it){ mx = Math.max(mx, it.line); });
+  (svc.otherLists || []).forEach(function(l){
+    mx = Math.max(mx, l.start);
+    l.items.forEach(function(it){ mx = Math.max(mx, it.line); });
+  });
+  return mx;
+}
+
+function opt(v, cur){ return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + v + '</option>'; }
+function listHTML(k, label, items, quote, idx){
+  var h = '<div class="grp" data-gk="' + k + '" data-svc="' + idx + '">'
+    + '<div class="grp-h">' + label + ' <span class="cnt">(' + items.length + ')</span></div>';
+  items.forEach(function(it, j){
+    h += '<div class="item" data-i="' + j + '">';
+    if (quote){
+      var p = String(it.v).split(':');
+      h += '<input class="h" value="' + esc(p[0] || '') + '"><span class="sep">:</span><input class="c" value="' + esc(p.slice(1).join(':') || '') + '">';
+    } else {
+      h += '<input class="one" value="' + esc(it.v) + '">';
+    }
+    h += '<button class="mini del">×</button></div>';
+  });
+  h += '<button class="mini add">＋ 添加' + (k === 'ports' ? '端口' : k === 'volumes' ? '挂载' : k === 'environment' ? '变量' : '标签') + '</button></div>';
+  return h;
+}
+function otherHTML(svc, idx){
+  var h = '';
+  if (svc.other && svc.other.length){
+    h += '<div class="grp" data-gk="other" data-svc="' + idx + '">'
+      + '<div class="grp-h">其他配置 <span class="cnt">(' + svc.other.length + ')</span></div>';
+    svc.other.forEach(function(it, j){
+      h += '<div class="item ovitem" data-i="' + j + '">'
+        + '<input class="ovk" value="' + esc(it.key) + '"><span class="sep">:</span><input class="ovv" value="' + esc(it.value) + '">'
+        + '<button class="mini del">×</button></div>';
+    });
+    h += '<button class="mini add">＋ 添加配置</button></div>';
+  }
+  (svc.otherLists || []).forEach(function(lst, li){
+    if (!lst.items.length) return;
+    h += '<div class="grp" data-gk="otherlist" data-li="' + li + '" data-svc="' + idx + '">'
+      + '<div class="grp-h">' + esc(lst.key) + ' <span class="cnt">(' + lst.items.length + ')</span></div>';
+    lst.items.forEach(function(it, j){
+      h += '<div class="item" data-i="' + j + '"><input class="one" value="' + esc(it.v) + '"><button class="mini del">×</button></div>';
+    });
+    h += '<button class="mini add">＋ 添加</button></div>';
+  });
+  return h;
+}
+function svcFormHTML(svc, idx){
+  var h = '<div class="svc" data-idx="' + idx + '">'
+    + '<div class="svc-h"><span class="svc-nm">服务 ' + esc(svc.name) + '</span></div>'
+    + '<div class="body"><div class="frm">'
+    + '<div class="row"><label>镜像 Image</label><input type="text" data-k="image" value="' + esc(svc.image) + '"></div>'
+    + '<div class="row"><label>容器名 container_name</label><input type="text" data-k="container_name" value="' + esc(svc.container_name) + '"></div>'
+    + '<div class="row"><label>重启策略 restart</label><select data-k="restart">'
+    + opt('unless-stopped', svc.restart) + opt('always', svc.restart) + opt('no', svc.restart) + opt('on-failure', svc.restart)
+    + '</select></div>'
+    + '<div class="row"><label>命令 command</label><input type="text" data-k="command" value="' + esc(svc.command) + '"></div>'
+    + listHTML('ports', '端口映射（宿主机:容器）', (svc.blocks.ports ? svc.blocks.ports.items : svc.ports), true, idx)
+    + listHTML('volumes', '挂载卷（宿主机路径:容器路径）', (svc.blocks.volumes ? svc.blocks.volumes.items : svc.volumes), false, idx)
+    + listHTML('environment', '环境变量（KEY=VALUE）', (svc.blocks.environment ? svc.blocks.environment.items : svc.environment), false, idx)
+    + listHTML('labels', '标签 Labels', (svc.blocks.labels ? svc.blocks.labels.items : svc.labels), false, idx)
+    + otherHTML(svc, idx)
+    + '</div></div></div>';
+  return h;
+}
+
+// 渲染表单到容器 + 绑定事件（formEl/taEl/state 三件套共用编辑与新建）
+function renderAndBind(formEl, taEl, state){
+  var p = state.parsed;
+  var box = formEl;
+  if (!p){ box.innerHTML = '<div class="tip">该配置无法自动解析，请直接在右侧代码区编辑。</div>'; return; }
+  var h = '';
+  if (p.name) h += '<div class="svc"><div class="svc-h"><span class="svc-nm">项目名 name: ' + esc(p.name) + '</span></div><div class="body"><div class="tip" style="margin:0">项目名在右侧代码顶部修改。</div></div></div>';
+  p.services.forEach(function(svc, i){ h += svcFormHTML(svc, i); });
+  box.innerHTML = h;
+
+  // 单值字段
+  box.querySelectorAll('input[data-k], select[data-k]').forEach(function(el){
+    el.addEventListener('input', function(){
+      var idx = parseInt(el.closest('.svc').getAttribute('data-idx'));
+      var svc = state.parsed.services[idx];
+      if (!svc) return;
+      var k = el.getAttribute('data-k');
+      var val = el.value.trim();
+      var line = svc.fLines[k];
+      if (line !== undefined && state.parsed.lines[line] !== undefined){
+        var m = state.parsed.lines[line].match(/^(\s*[A-Za-z0-9_.-]+:)(.*)$/);
+        if (m) state.parsed.lines[line] = m[1] + (val ? ' ' + val : '');
+      } else {
+        var anchor = 0;
+        if (svc.blocks.ports && svc.blocks.ports.start !== undefined) anchor = svc.blocks.ports.start;
+        state.parsed.lines.splice(anchor, 0, '    ' + k + ':' + (val ? ' ' + val : ''));
+      }
+      refreshCode(taEl, state);
+    });
+  });
+  // 列表项编辑（已知列表）
+  box.querySelectorAll('.grp[data-gk]:not([data-gk="other"]):not([data-gk="otherlist"]) .item input').forEach(function(el){
+    el.addEventListener('input', function(){
+      var item = el.closest('.item');
+      var grp = el.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var k = grp.getAttribute('data-gk');
+      var svc = state.parsed.services[idx];
+      var j = parseInt(item.getAttribute('data-i'));
+      var blk = svc.blocks[k];
+      if (!blk || !blk.items[j]) return;
+      var one = item.querySelector('.one');
+      var val;
+      if (one) val = one.value.trim();
+      else {
+        var h2 = item.querySelector('.h').value.trim(), c2 = item.querySelector('.c').value.trim();
+        val = h2 + ':' + c2;
+      }
+      var pad = ' '.repeat(blk.indent + 2);
+      state.parsed.lines[blk.items[j].line] = pad + '- ' + (k === 'ports' ? '"' + val + '"' : val);
+      refreshCode(taEl, state);
+    });
+  });
+  // 删除项（已知列表）
+  box.querySelectorAll('.grp[data-gk]:not([data-gk="other"]):not([data-gk="otherlist"]) .item .del').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var item = btn.closest('.item');
+      var grp = btn.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var k = grp.getAttribute('data-gk');
+      var svc = state.parsed.services[idx];
+      var j = parseInt(item.getAttribute('data-i'));
+      var blk = svc.blocks[k];
+      if (!blk || !blk.items[j]) return;
+      state.parsed.lines.splice(blk.items[j].line, 1);
+      state.parsed = parseCompose(state.parsed.lines.join('\n'));
+      refreshCode(taEl, state);
+      renderAndBind(formEl, taEl, state);
+    });
+  });
+  // 添加项（已知列表）
+  box.querySelectorAll('.grp[data-gk]:not([data-gk="other"]):not([data-gk="otherlist"]) .add').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var grp = btn.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var k = grp.getAttribute('data-gk');
+      var svc = state.parsed.services[idx];
+      var blk = svc.blocks[k];
+      var pad = ' '.repeat((blk ? blk.indent : 4) + 2);
+      var def = k === 'ports' ? '- "8080:80"' : k === 'environment' ? '- KEY=VALUE' : k === 'volumes' ? '- ./data:/data' : '- label=value';
+      var anchor = (blk && blk.start !== undefined) ? blk.start + 1 : -1;
+      if (anchor < 0){
+        var min = Infinity;
+        Object.keys(svc.blocks).forEach(function(bk){ if (svc.blocks[bk].start !== undefined && svc.blocks[bk].start < min) min = svc.blocks[bk].start; });
+        anchor = isFinite(min) ? min + 1 : (svc.fLines.image !== undefined ? svc.fLines.image + 1 : -1);
+      }
+      if (anchor < 0){ toast('无法定位插入位置，请在右侧代码区手动添加', true); return; }
+      state.parsed.lines.splice(anchor, 0, pad + def);
+      state.parsed = parseCompose(state.parsed.lines.join('\n'));
+      refreshCode(taEl, state);
+      renderAndBind(formEl, taEl, state);
+    });
+  });
+  // 其他配置（单值 key:value）编辑
+  box.querySelectorAll('.grp[data-gk="other"] .item input').forEach(function(el){
+    el.addEventListener('input', function(){
+      var item = el.closest('.item');
+      var grp = el.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var svc = state.parsed.services[idx];
+      var j = parseInt(item.getAttribute('data-i'));
+      var it = svc.other[j];
+      if (!it) return;
+      var k = item.querySelector('.ovk').value.trim();
+      var v = item.querySelector('.ovv').value.trim();
+      var m = state.parsed.lines[it.line].match(/^(\s*)/);
+      state.parsed.lines[it.line] = (m ? m[1] : '    ') + (k || 'key') + ':' + (v ? ' ' + v : '');
+      state.parsed = parseCompose(state.parsed.lines.join('\n'));
+      refreshCode(taEl, state);
+      renderAndBind(formEl, taEl, state);
+    });
+  });
+  // 其他配置删除
+  box.querySelectorAll('.grp[data-gk="other"] .item .del').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var item = btn.closest('.item');
+      var grp = btn.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var svc = state.parsed.services[idx];
+      var j = parseInt(item.getAttribute('data-i'));
+      var it = svc.other[j];
+      if (!it) return;
+      state.parsed.lines.splice(it.line, 1);
+      state.parsed = parseCompose(state.parsed.lines.join('\n'));
+      refreshCode(taEl, state);
+      renderAndBind(formEl, taEl, state);
+    });
+  });
+  // 其他配置添加
+  box.querySelectorAll('.grp[data-gk="other"] .add').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var grp = btn.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var svc = state.parsed.services[idx];
+      var last = svcLastLine(svc);
+      if (last < 0){ toast('无法定位插入位置', true); return; }
+      state.parsed.lines.splice(last + 1, 0, '    newkey: value');
+      state.parsed = parseCompose(state.parsed.lines.join('\n'));
+      refreshCode(taEl, state);
+      renderAndBind(formEl, taEl, state);
+    });
+  });
+  // 其他列表（otherlist）项编辑
+  box.querySelectorAll('.grp[data-gk="otherlist"] .item input').forEach(function(el){
+    el.addEventListener('input', function(){
+      var item = el.closest('.item');
+      var grp = el.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var li = parseInt(grp.getAttribute('data-li'));
+      var svc = state.parsed.services[idx];
+      var j = parseInt(item.getAttribute('data-i'));
+      var lst = svc.otherLists[li];
+      if (!lst || !lst.items[j]) return;
+      var pad = ' '.repeat(lst.indent + 2);
+      state.parsed.lines[lst.items[j].line] = pad + '- ' + item.querySelector('.one').value.trim();
+      refreshCode(taEl, state);
+    });
+  });
+  // 其他列表删除
+  box.querySelectorAll('.grp[data-gk="otherlist"] .item .del').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var item = btn.closest('.item');
+      var grp = btn.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var li = parseInt(grp.getAttribute('data-li'));
+      var svc = state.parsed.services[idx];
+      var j = parseInt(item.getAttribute('data-i'));
+      var lst = svc.otherLists[li];
+      if (!lst || !lst.items[j]) return;
+      state.parsed.lines.splice(lst.items[j].line, 1);
+      state.parsed = parseCompose(state.parsed.lines.join('\n'));
+      refreshCode(taEl, state);
+      renderAndBind(formEl, taEl, state);
+    });
+  });
+  // 其他列表添加
+  box.querySelectorAll('.grp[data-gk="otherlist"] .add').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var grp = btn.closest('.grp');
+      var idx = parseInt(grp.getAttribute('data-svc'));
+      var li = parseInt(grp.getAttribute('data-li'));
+      var svc = state.parsed.services[idx];
+      var lst = svc.otherLists[li];
+      if (!lst) return;
+      var pad = ' '.repeat(lst.indent + 2);
+      state.parsed.lines.splice(lst.start + 1, 0, pad + '- item');
+      state.parsed = parseCompose(state.parsed.lines.join('\n'));
+      refreshCode(taEl, state);
+      renderAndBind(formEl, taEl, state);
+    });
+  });
+}
+function refreshCode(taEl, state){
+  if (state.parsed && state.parsed.lines) taEl.value = state.parsed.lines.join('\n');
+}
+function autoMapVolumes(state){
+  if (!state || !state.parsed) return;
+  var changed = false;
+  var mapEl = document.getElementById('newMapDir');
+  var customDir = (mapEl && mapEl.value.trim()) ? mapEl.value.trim().replace(/\/+$/,'') : '';
+  var root = String(curDir || '').replace(/\/+$/,'');
+  state.parsed.services.forEach(function(svc){
+    var blk = svc.blocks.volumes;
+    if (!blk) return;
+    blk.items.forEach(function(it){
+      var parts = String(it.v).split(':');
+      var host = (parts[0] || '').replace(/^["']|["']$/g, '');
+      if (parts.length >= 2 && host.charAt(0) === '/'){
+        // 保留多级相对结构：根目录内 → 去掉根目录与项目名段，保留其余子路径（如 daidai-panel/docker.sock）
+        var rel = '';
+        if (root && host.indexOf(root + '/') === 0){
+          var sub = host.slice(root.length + 1).split('/').filter(Boolean);
+          sub.shift();
+          rel = sub.join('/');
+        }
+        if (!rel){
+          var segs = host.split('/').filter(Boolean);
+          rel = segs[segs.length - 1] || '';
+        }
+        if (rel){
+          var pad = ' '.repeat(blk.indent + 2);
+          var mapped = customDir ? customDir + '/' + rel : './' + rel;
+          state.parsed.lines[it.line] = pad + '- ' + mapped + ':' + parts.slice(1).join(':');
+          changed = true;
+        }
+      }
+    });
+  });
+  if (changed) state.parsed = parseCompose(state.parsed.lines.join('\n'));
+}
+// 代码编辑 → 防抖重解析表单（autoMapEl 传入复选框元素时，勾选状态下自动映射挂载路径）
+function bindCodeParse(taEl, formEl, state, autoMapEl){
+  var deb = null;
+  taEl.addEventListener('input', function(){
+    clearTimeout(deb);
+    deb = setTimeout(function(){
+      var p = parseCompose(taEl.value);
+      if (p){
+        state.parsed = p;
+        if (autoMapEl && autoMapEl.checked) autoMapVolumes(state);
+        refreshCode(taEl, state);
+        renderAndBind(formEl, taEl, state);
+      }
+    }, 600);
+  });
+}
+
+// ===== 弹窗最小化后台运行 =====
+var minTabs = {}, minBar = null;
+// 任务条定位：移动端 LuCI 用 iframe 嵌入本页面，且 iframe 高度被父页动态设成"内容高度"
+// （fitHeight），本窗口的 innerHeight 根本不是屏幕可视高度——一切"贴视口底部"的计算都会
+// 落到内容流末尾。因此优先通过同源 parent 拿到"iframe 在屏幕上的实时位置 + 父视口高度"，
+// 把任务条绝对定位到"屏幕底部上方 12px"；非 iframe/桌面端再用 transform 兜底校准。
+function setMinBarPos(){
+  if (!minBar) return;
+  try {
+    var p = window.parent;
+    if (p && p !== window && p.document && p.innerHeight){
+      var pw = p.innerHeight || 800;
+      var ifs = p.document.querySelectorAll('iframe');
+      for (var i = 0; i < ifs.length; i++){
+        if (ifs[i].contentWindow === window){
+          var rt = ifs[i].getBoundingClientRect();
+          if (rt && isFinite(rt.top)){
+            var top = Math.max(0, pw - 12 - rt.top);   // 屏幕底部-12，换算成本文档坐标
+            minBar.style.position = 'absolute';
+            minBar.style.top = top + 'px';
+            minBar.style.left = '12px';
+            minBar.style.right = '12px';
+            minBar.style.bottom = 'auto';
+            minBar.style.transform = 'none';
+            return;
+          }
+        }
+      }
+    }
+  } catch(e){}
+  // 兜底（非 iframe / 桌面端）：transform 校准到本窗口视口底部
+  var vh = window.innerHeight || document.documentElement.clientHeight || 800;
+  minBar.style.transform = 'none';
+  var r = minBar.getBoundingClientRect();
+  var h = r.height || minBar.offsetHeight || 44;
+  var dy = (vh - 12) - r.bottom;
+  minBar.style.transform = 'translateY(' + dy + 'px)';
+}
+function ensureMinBar(){
+  if (minBar) return;
+  minBar = document.createElement('div');
+  minBar.className = 'minbar';
+  (document.body || document.documentElement).appendChild(minBar);
+  minBar.style.position = 'absolute';              // 脱离文档流，不占页面布局
+  setMinBarPos();
+  window.addEventListener('scroll', setMinBarPos, true);
+  window.addEventListener('resize', setMinBarPos);
+  try {
+    var p = window.parent;
+    if (p && p !== window && p.document){
+      p.addEventListener('scroll', setMinBarPos, true);   // 父页面滚动/视口变化都要重算
+      p.addEventListener('resize', setMinBarPos);
+    }
+  } catch(e){}
+  setInterval(setMinBarPos, 600);                  // iframe 高度(fitHeight)/工具栏变化兜底
+  setTimeout(setMinBarPos, 60);                    // 渲染/字体加载后高度变化再校准
+  setTimeout(setMinBarPos, 400);
+  setTimeout(setMinBarPos, 1200);
+}
+function removeChip(chip){ if (chip && chip.parentNode) chip.parentNode.removeChild(chip); }
+function removeMinTabsByPrefix(id){
+  Object.keys(minTabs).forEach(function(k){
+    if (k === id || k.indexOf(id + '|') === 0){ removeChip(minTabs[k]); delete minTabs[k]; }
+  });
+}
+function minimizeWindow(id, title, path){
+  var ov = document.getElementById(id);
+  if (!ov) return;
+  ov.classList.remove('show');
+  ensureMinBar();
+  var key = id + '|' + title;
+  if (minTabs[key]) removeChip(minTabs[key]);
+  var chip = document.createElement('div');
+  chip.className = 'minchip';
+  chip.innerHTML = '<span class="mt">' + esc(title || id) + '</span><button class="mx" title="关闭">×</button>';
+  chip.addEventListener('click', function(){ restoreWindow(key, chip, id, path); });
+  chip.querySelector('.mx').addEventListener('click', function(ev){
+    ev.stopPropagation();
+    if (id === 'ovTask'){ if (taskId) api('op_cancel', {id:taskId}); }
+    removeChip(chip); delete minTabs[key];
+    if (id === 'ovNew') setSrc('create');
+  });
+  minBar.appendChild(chip);
+  minTabs[key] = chip;
+  setMinBarPos();
+}
+function restoreWindow(key, chip, id, path){
+  var ov = document.getElementById(id);
+  if (!ov) return;
+  removeChip(chip); delete minTabs[key];
+  if (id === 'ovUp' && path){ openUp(path); return; }
+  if (id === 'ovEdit' && path){ openEdit(path); return; }
+  ov.classList.add('show');
+  fitDlgTitle(ov);
+}
+$('btnNewMin').onclick = function(){ minimizeWindow('ovNew', '创建项目'); };
+$('btnEditMin').onclick = function(){ minimizeWindow('ovEdit', $('editTitle').textContent || '编辑', editPath); };
+$('btnTaskMin').onclick = function(){ minimizeWindow('ovTask', $('taskTitle').textContent || '操作'); };
+$('btnTaskClose').onclick = function(){ $('ovTask').classList.remove('show'); };
+$('btnTaskCopy').onclick = function(){ copyText($('taskLog').value); };
+
+// 标题栏一行 + 宽度不够自动扩宽（超长标题优先加宽弹窗，加宽到上限仍不够才省略）
+function fitDlgTitle(dlg){
+  if (!dlg) return;
+  var h3 = dlg.querySelector('.dh h3');
+  if (!h3) return;
+  if (h3.scrollWidth > h3.clientWidth + 2){
+    var max = Math.min(window.innerWidth * 0.97, 820);
+    var need = h3.scrollWidth + 100;
+    dlg.style.width = Math.min(need, max) + 'px';
+  }
+}
+
+// ===== 后台任务 =====
+var taskTimer = null, taskId = null;
+
+function setTaskState(txt, c, bg){
+  var el = $('taskState');
+  el.textContent = txt;
+  el.style.color = c || '#1a73e8';
+  el.style.background = bg || 'rgba(26,115,232,.10)';
+}
+function openTask(title){
+  $('taskTitle').textContent = title;
+  $('taskLog').value = '等待任务开始…';
+  setTaskState('运行中');
+  $('btnTaskCancel').disabled = false;
+  $('ovTask').classList.add('show');
+  fitDlgTitle($('ovTask'));
+  removeMinTabsByPrefix('ovTask');
+}
+function closeTask(){
+  if (taskTimer){ clearInterval(taskTimer); taskTimer = null; }
+  $('ovTask').classList.remove('show');
+  removeMinTabsByPrefix('ovTask');
+}
+$('btnTaskCancel').onclick = async function(){
+  if (!taskId) return;
+  $('btnTaskCancel').disabled = true;
+  try{
+    await api('op_cancel', {id:taskId});
+    setTaskState('已取消', '#666', 'rgba(102,102,102,.10)');
+    toast('已取消操作');
+  }catch(e){ toast('取消失败：' + (e.message||e), true); }
+  setTimeout(closeTask, 1500);
+};
+function startTaskPoll(action, afterDone){
+  taskTimer = setInterval(async function(){
+    try{
+      var d = await api('op_status', {id:taskId});
+      if (d.error) throw new Error(d.error);
+      var log = cleanLog(d.log);
+      $('taskLog').value = log || '(暂无输出)';
+      $('taskLog').scrollTop = $('taskLog').scrollHeight;
+      if (d.done){
+        clearInterval(taskTimer); taskTimer = null;
+        $('btnTaskCancel').disabled = true;
+        var ok = (d.code === '0');
+        setTaskState(ok ? '完成' : '失败', ok ? '#2e7d32' : '#d93025', ok ? 'rgba(46,125,50,.10)' : 'rgba(217,48,37,.10)');
+        var nm = {up:'启动', down:'停止', restart:'重启', upgrade:'更新'}[action] || action;
+        toast(nm + (ok ? '完成' : '失败'), !ok);
+        if (!ok && d.log){
+          var lines = d.log.trim().split('\n');
+          toast('错误：' + (lines[lines.length-1] || d.log).slice(0,200), true);
+        }
+        setTimeout(function(){ closeTask(); afterDone(); }, ok ? 1200 : 2500);
+      }
+    }catch(e){
+      clearInterval(taskTimer); taskTimer = null;
+      toast('进度获取失败：' + (e.message||e), true);
+      setTimeout(function(){ closeTask(); afterDone(); }, 1500);
+    }
+  }, 1500);
+}
+
+async function load(){
+  busy = true; $('btnRefresh').disabled = true;
+  showErr(null);
+  $('listBox').innerHTML = '<div class="loading"><span class="spin"></span>加载中…</div>';
+  try{
+    var d = await api('list');
+    if (d.error) throw new Error(d.error);
+    curDir = d.dir;
+    var cp = $('compPath'); if (cp) cp.textContent = d.dir || '未设置目录';
+    var cd = $('curDir'); if (cd) cd.textContent = d.dir;
+    $('newDirTip').textContent = d.dir;
+    var arr = Array.isArray(d.entries) ? d.entries : [];
+    arr.sort(function(a,b){
+      var ra = statusOf(a.status).cls === 'run' ? 0 : 1;
+      var rb = statusOf(b.status).cls === 'run' ? 0 : 1;
+      if (ra !== rb) return ra - rb;
+      var na = a.name || '', nb = b.name || '';
+      try { return na.localeCompare(nb, 'zh-CN', {numeric:true}); }
+      catch(e) { return na < nb ? -1 : na > nb ? 1 : 0; }
+    });
+    selectedPaths = {};
+    window.__entries = arr;
+    render(arr);
+    refreshSel();
+    checkUpdates();
+  }catch(e){
+    $('listBox').innerHTML = '<div class="empty"><div class="big">⚠️</div><div class="t">加载失败</div><div class="s">' + esc(e.message || e) + '</div></div>';
+    toast('加载失败：' + (e.message || e), true);
+  }
+  busy = false; $('btnRefresh').disabled = false;
+  refreshSyncState();
+  updateAutoUpBtn();
+}
+
+// 项目卡片更新状态提示（常驻，运行中的项目显示）：检查中=黄 / 新版=绿可点 / 最新=灰 / 检查失败=红
+var upBadgeBound = false;
+function setUpBadge(dir, txt, cls, title){
+  var bds = document.querySelectorAll('.upbadge');
+  for (var i = 0; i < bds.length; i++){
+    if (bds[i].getAttribute('data-upbadge') === dir){
+      bds[i].textContent = txt;
+      bds[i].className = 'upbadge' + (cls ? ' ' + cls : '');
+      bds[i].title = title;
+      return;
+    }
+  }
+}
+function checkUpdates(){
+  if (!upBadgeBound){
+    upBadgeBound = true;
+    document.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('.upbadge.on') : null;
+      if (b) openUp(b.getAttribute('data-upbadge'));
+    });
+  }
+  var ent = window.__entries || [];
+  if (!ent.length) return;
+  ent.forEach(function(it){
+    api('up_status', {path:it.dir}).then(function(d){
+      if (!d || d.error){ setUpBadge(it.dir, '检查失败', 'err', '无法检查更新：' + ((d && d.error) || '未知原因')); return; }
+      if (d.checked === false){ setUpBadge(it.dir, '检查失败', 'err', '无法检查更新：' + (d.msg || '未知原因')); return; }
+      if (d.has_update){ setUpBadge(it.dir, '新版', 'on', '检测到新版本，点击更新'); }
+      else { setUpBadge(it.dir, '最新', '', '已是最新版本'); }
+    }).catch(function(){
+      setUpBadge(it.dir, '检查失败', 'err', '无法检查更新：网络异常');
+    });
+  });
+}
+
+// 同步按钮状态：有未托管容器 → 蓝色亮起可点；无 → 浅灰禁用
+var syncPending = 0;
+var notePath = null;
+function refreshSyncState(){
+  api('sync').then(function(d){
+    syncPending = (d.pending && d.pending.length) || 0;
+    var b = $('btnSync');
+    if (syncPending > 0){ b.classList.add('pri'); b.classList.remove('ghost'); b.classList.remove('dim'); b.disabled = false; }
+    else { b.classList.remove('pri'); b.classList.add('ghost'); b.disabled = true; }
+  }).catch(function(){});
+}
+
+function render(entries){
+  var stRun = 0, stStop = 0;
+  entries.forEach(function(it){
+    var st = statusOf(it.status);
+    if (st.cls === 'run') stRun++; else stStop++;
+  });
+  $('stAll').textContent = entries.length;
+  $('stRun').textContent = stRun;
+  $('stStop').textContent = stStop;
+
+  var box = $('listBox');
+  if (!entries.length){
+    box.innerHTML = '<div class="empty"><div class="big">📦</div>'
+      + '<div class="t">还没有 Compose 项目</div>'
+      + '<div class="s">点击右上角「＋ 新建」创建项目<br>或在 <code>' + esc(curDir) + '</code> 下手动放子目录 + docker-compose.yml</div></div>';
+    return;
+  }
+  // 统计共享挂载路径（多个项目挂载同一宿主机路径 → 标注共享）
+  var volCnt = {}, volShared = {};
+  entries.forEach(function(it){
+    (Array.isArray(it.volumes)?it.volumes:[]).forEach(function(v){ volCnt[v] = (volCnt[v]||0)+1; });
+  });
+  Object.keys(volCnt).forEach(function(v){ if (volCnt[v] > 1) volShared[v] = true; });
+  var html = '<div class="grid">';
+  entries.forEach(function(it){
+    var st = statusOf(it.status);
+    var name = it.name;
+    var note = it.note || '';
+    var title = note || name;
+    var initials = title.replace(/[_-]/g,' ').trim().split(/\s+/).map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase();
+    html += '<div class="card sel' + (st.cls === 'run' ? '' : ' stopped') + '" data-path="' + esc(it.dir) + '">'
+      + '<div class="top">'
+      + '<label class="cb" style="margin:0"><input type="checkbox" data-sel data-path="' + esc(it.dir) + '"></label>'
+      + '<div class="avatar">' + esc(initials) + '</div>'
+      + '<div class="mid">'
+      + '<div class="nm" title="点击修改备注">' + esc(title) + '</div>'
+      + (note ? '<div class="nm-sub">容器名：' + esc(name) + '</div>' : '')
+      + '<div class="st"><span class="dot ' + st.cls + '"></span><span class="txt ' + st.cls + '">' + esc(st.txt) + '</span>' + (st.cls === 'run' ? '<span class="upbadge chk" data-upbadge="' + esc(it.dir) + '" title="检查更新中…">检查中…</span>' : '') + '</div>'
+      + '</div>'
+      + '<span class="sp2"></span>'
+      + '<label class="sw"><input type="checkbox" class="tog"' + (st.cls === 'run' ? ' checked' : '') + '><span class="sl"></span></label>'
+      + '<button class="cpcard" title="一键复制项目">⧉</button><button class="delcard" title="删除项目">❌</button>'
+      + '</div></div>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+$('listBox').addEventListener('click', function(ev){
+  if (busy) return;
+  var cb = ev.target.closest('input[data-sel]');
+  var card = ev.target.closest('.card[data-path]');
+  if (cb){
+    var p = cb.getAttribute('data-path');
+    toggleSel(p, cb.checked);
+    return;
+  }
+  var del = ev.target.closest('.delcard');
+  if (del && card){
+    runOp('delete', card.getAttribute('data-path'));
+    return;
+  }
+  var cpc = ev.target.closest('.cpcard');
+  if (cpc && card){
+    copySrc = card.getAttribute('data-path');
+    var nm = (card.querySelector('.nm') || {}).textContent || '';
+    $('copyTip').textContent = '将复制「' + nm + '」的配置为新项目。';
+    var ent = window.__entries || [];
+    var base = nm.replace(/_\d+$/, '');
+    var mx = 1;
+    ent.forEach(function(it){
+      var m = String(it.note || it.name || '').match(new RegExp('^' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '_(\\d+)$'));
+      if (m) mx = Math.max(mx, parseInt(m[1], 10));
+    });
+    $('copyName').value = base + '_' + (mx + 1);
+    // 端口：读取源项目现用端口自动顺延填充（列表数据即时计算，无异步等待）
+    var srcPorts = [], usedPorts = {};
+    (window.__entries || []).forEach(function(it){
+      var pl = Array.isArray(it.ports) ? it.ports : [];
+      pl.forEach(function(p){ usedPorts[String(p)] = true; });
+      if (it.dir === copySrc) srcPorts = pl;
+    });
+    var bp = 0;
+    srcPorts.forEach(function(p){ var n = parseInt(p, 10); if (n && (bp === 0 || n < bp)) bp = n; });
+    if (bp > 0){
+      var pt = bp + 1;
+      while (usedPorts[String(pt)]) pt++;
+      $('copyPort').value = String(pt);
+    } else {
+      // 列表无端口时兜底：读 yml 里的端口映射
+      api('yml_get', {path:copySrc}).then(function(d){
+        if (d && !d.error){
+          var m = String(d.content || '').match(/(\d+):\d+/);
+          if (m){
+            var p2 = parseInt(m[1], 10) + 1;
+            while (usedPorts[String(p2)]) p2++;
+            $('copyPort').value = String(p2);
+          }
+        }
+      }).catch(function(){});
+    }
+    // 外部挂载路径：根目录外的绝对路径列出，供勾选跟随新项目名
+    var extWrap = $('copyExtWrap'), extList = $('copyExtList');
+    if (extWrap) extWrap.style.display = 'none';
+    if (extList) extList.innerHTML = '';
+    api('yml_get', {path:copySrc}).then(function(d){
+      if (d && !d.error && extWrap && extList){
+        var root2 = String(curDir || '').replace(/\/+$/,'');
+        var ext = [];
+        String(d.content || '').split('\n').forEach(function(l){
+          var m = l.match(/^\s*-\s*["']?(\/[^"'#\s]+?):\//);
+          if (m){
+            var host = m[1].replace(/["']/g,'');
+            if (host.charAt(0) === '/' && !(root2 && host.indexOf(root2 + '/') === 0) && ext.indexOf(host) < 0){
+              ext.push(host);
+            }
+          }
+        });
+        if (ext.length){
+          extWrap.style.display = 'block';
+          extList.innerHTML = ext.map(function(v){
+            return '<label class="cb" style="margin:0"><input type="checkbox" class="copyext" data-v="' + esc(v) + '">' + esc(v) + '</label>';
+          }).join('<br>');
+        }
+      }
+    }).catch(function(){});
+    $('ovCopy').classList.add('show');
+    setTimeout(function(){ $('copyName').select(); }, 50);
+  }
+  var nmEl = ev.target.closest('.nm');
+  if (nmEl && card){
+    notePath = card.getAttribute('data-path');
+    var curNote = '';
+    (window.__entries || []).forEach(function(it){ if (it.dir === notePath) curNote = it.note || ''; });
+    $('noteVal').value = curNote;
+    $('ovNote').classList.add('show');
+    setTimeout(function(){ $('noteVal').select(); }, 50);
+    return;
+  }
+});
+async function copyCompose(path){
+  try{
+    var d = await api('yml_get', {path:path});
+    if (d.error) throw new Error(d.error);
+    var code = d.content || '';
+    var ok = false;
+    try{
+      await navigator.clipboard.writeText(code);
+      ok = true;
+    }catch(e){
+      var ta = document.createElement('textarea');
+      ta.value = code;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try{ ok = document.execCommand('copy'); }catch(e2){}
+      document.body.removeChild(ta);
+    }
+    if (ok){ toast('项目代码已复制'); if (typeof hasPasteClip !== 'undefined'){ hasPasteClip = true; updPasteBtn(); } }
+    else {
+      $('cpCode').value = code;
+      $('ovCp').classList.add('show');
+      toast('自动复制失败，请在弹出的窗口手动复制');
+    }
+  }catch(e){
+    toast('获取代码失败：' + (e.message || e), true);
+  }
+}
+$('listBox').addEventListener('change', function(ev){
+  var tog = ev.target.closest('input.tog');
+  if (!tog || busy) return;
+  var card = tog.closest('.card[data-path]');
+  if (!card) return;
+  var p = card.getAttribute('data-path');
+  var a = tog.checked ? 'up' : 'down';
+  if (!confirm(a === 'up' ? '确定要启动该项目吗？' : '确定要停止该项目吗？')){
+    tog.checked = !tog.checked;
+    return;
+  }
+  busy = true;
+  api('op_start', {action:a, path:p}).then(function(d){
+    if (d.error) throw new Error(d.error);
+    taskId = d.id;
+    openTask((a === 'up' ? '启动' : '停止') + ' - ' + p.split('/').pop());
+    startTaskPoll(a, function(){ busy = false; load(); });
+  }).catch(function(e){
+    toast((a === 'up' ? '启动' : '停止') + '失败：' + (e.message || e), true);
+    busy = false; load();
+  });
+});
+
+async function runOp(a, path){
+  var names = {up:'启动', down:'停止', restart:'重启'};
+  if (a === 'delete'){
+    delPaths = [path];
+    $('delTip').textContent = '将删除该项目的 compose 配置（默认保留容器运行）。';
+    $('ovDel').classList.add('show');
+    return;
+  } else {
+    if (!confirm('确定要' + names[a] + '该项目吗？')) return;
+  }
+  busy = true;
+  try{
+    var d = await api('op_start', {action:a, path:path});
+    if (d.error) throw new Error(d.error);
+    taskId = d.id;
+    openTask(names[a] + ' - ' + path.split('/').pop());
+    startTaskPoll(a, function(){ busy = false; load(); });
+  }catch(e){
+    toast(names[a] + '失败：' + (e.message||e), true);
+    busy = false;
+  }
+}
+
+// ===== 勾选 + 顶部操作栏 =====
+function toggleSel(path, force){
+  var on = (force !== undefined) ? force : !selectedPaths[path];
+  if (on) selectedPaths[path] = true; else delete selectedPaths[path];
+  refreshSel();
+}
+function refreshSel(){
+  var cards = document.querySelectorAll('.card[data-path]');
+  var n = Object.keys(selectedPaths).length;
+  $('selCnt').textContent = '已选 ' + n;
+  document.querySelectorAll('#opBar button[data-op]').forEach(function(b){
+    var op = b.getAttribute('data-op');
+    var singleOnly = (op === 'edit' || op === 'logs' || op === 'upgrade' || op === 'info');
+    b.disabled = (n === 0) || (singleOnly && n > 1);
+  });
+  cards.forEach(function(c){
+    var p = c.getAttribute('data-path');
+    var on = !!selectedPaths[p];
+    c.classList.toggle('selon', on);
+    var cb = c.querySelector('input[data-sel]');
+    if (cb) cb.checked = on;
+  });
+  $('selAll').checked = (n > 0 && n === cards.length);
+  var cpbtn = $('btnCopy');
+  if (cpbtn){
+    if (n === 1){ cpbtn.disabled = false; cpbtn.classList.add('pri'); cpbtn.classList.remove('dim'); cpbtn.classList.remove('ghost'); }
+    else { cpbtn.disabled = true; cpbtn.classList.remove('pri'); cpbtn.classList.add('ghost'); }
+  }
+  var inf = null; // 信息按钮已移至底部管理卡片（opbtns data-op=info），由 obtn 循环统一处理
+  var sb = $('btnSync');
+  if (sb){
+    if (syncPending > 0 && n <= 1){ sb.disabled = false; sb.classList.add('pri'); sb.classList.remove('ghost'); sb.classList.remove('dim'); }
+    else { sb.disabled = true; sb.classList.remove('pri'); sb.classList.add('ghost'); }
+  }
+  var obtn = document.querySelectorAll('.opbtns .btn[data-op]');
+  for (var oi=0;oi<obtn.length;oi++){
+    var opb = obtn[oi].getAttribute('data-op');
+    var multiOk = (opb === 'restart' || opb === 'move');
+    if (n > 0 && (n === 1 || multiOk)){ obtn[oi].disabled = false; obtn[oi].classList.add('pri'); obtn[oi].classList.remove('ghost'); }
+    else { obtn[oi].disabled = true; obtn[oi].classList.remove('pri'); obtn[oi].classList.add('ghost'); }
+  }
+}
+// ===== 项目信息弹窗（替代卡片折叠展示，工具栏"信息"按钮单选时触发） =====
+function showInfo(){
+  var dirs = Object.keys(selectedPaths);
+  if (dirs.length !== 1) return;
+  var it = null;
+  (window.__entries || []).forEach(function(e){ if (e.dir === dirs[0]) it = e; });
+  if (!it){ toast('未找到项目数据，请刷新重试', true); return; }
+  // 共享挂载标注（与列表渲染同口径）
+  var volCnt = {}, volShared = {};
+  (window.__entries || []).forEach(function(x){
+    (Array.isArray(x.volumes) ? x.volumes : []).forEach(function(v){ volCnt[v] = (volCnt[v] || 0) + 1; });
+  });
+  Object.keys(volCnt).forEach(function(v){ if (volCnt[v] > 1) volShared[v] = true; });
+  function row(k, v){
+    return '<div class="row"><span class="k">' + k + '：</span><span>' + v + '</span></div>';
+  }
+  var volHtml = '—';
+  if (Array.isArray(it.volumes) && it.volumes.length){
+    volHtml = it.volumes.map(function(v){
+      var s = esc(v);
+      return volShared[v] ? '<span class="shv" title="该路径被 ' + volCnt[v] + ' 个项目共享挂载；只读共享安全，多实例同时写入可能互相覆盖">' + s + '<em class="shb">共享</em></span>' : s;
+    }).join('、');
+  }
+  $('infoBody').innerHTML =
+      row('项目名称', esc(it.note || it.name))
+    + row('项目路径', esc(it.dir))
+    + row('项目文件', esc(it.yml))
+    + row('容器名称', esc((Array.isArray(it.containers) ? it.containers : []).join('、') || '—'))
+    + row('容器版本', esc(it.cver || '—'))
+    + row('映射端口', esc((Array.isArray(it.ports) ? it.ports : []).join('、') || '—'))
+    + row('映射路径', volHtml)
+    + row('更新时间', esc(it.mtime || '未知'))
+    + row('运行时间', '已运行 ' + esc(fmtUp(it.uptime)));
+  $('ovInfo').classList.add('show');
+}
+$('btnInfoClose').onclick = function(){ $('ovInfo').classList.remove('show'); };
+$('btnInfoCopy').onclick = function(){ copyText($('infoBody').textContent); };
+$('btnInfoOk').onclick = function(){ $('ovInfo').classList.remove('show'); };
+
+$('selAll').addEventListener('change', function(){
+  var on = this.checked;
+  document.querySelectorAll('.card[data-path]').forEach(function(c){
+    var p = c.getAttribute('data-path');
+    if (on) selectedPaths[p] = true; else delete selectedPaths[p];
+  });
+  refreshSel();
+});
+$('opBar').addEventListener('click', function(ev){
+  var b = ev.target.closest('button[data-op]');
+  if (!b || b.disabled || busy) return;
+  var op = b.getAttribute('data-op');
+  var paths = Object.keys(selectedPaths);
+  if (!paths.length) return;
+  if (['edit','logs','info'].indexOf(op) >= 0 && paths.length > 1){
+    toast('该操作仅支持勾选 1 个项目', true); return;
+  }
+  if (op === 'logs') openLog(paths[0]);
+  else if (op === 'edit') openEdit(paths[0]);
+  else if (op === 'upgrade') openUp(paths[0]);
+  else if (op === 'info') showInfo();
+  else if (op === 'move') openMove(paths);
+  else if (op === 'delete'){ delPaths = paths.slice(); $('delTip').textContent = '将删除所选 ' + paths.length + ' 个项目的 compose 配置（默认保留容器运行）。'; $('ovDel').classList.add('show'); }
+  else runOps(op, paths);
+});
+async function runOps(op, paths){
+  var names = {up:'启动', down:'停止', restart:'重启'};
+  if (!confirm('确定要' + names[op] + '选中的 ' + paths.length + ' 个项目吗？')) return;
+  busy = true;
+  try{
+    var okAll = true, errs = '';
+    for (var i=0;i<paths.length;i++){
+      try{
+        var d = await api('op_start', {action:op, path:paths[i]});
+        if (d.error) throw new Error(d.error);
+        taskId = d.id;
+        openTask(names[op] + ' - ' + paths[i].split('/').pop());
+        await new Promise(function(res){ startTaskPoll(op, function(){ res(); }); });
+      }catch(e){ okAll = false; errs += paths[i].split('/').pop() + ':' + (e.message||e) + '; '; }
+    }
+    selectedPaths = {};
+    refreshSel();
+    await load();
+    if (!okAll) toast('部分失败：' + errs, true); else toast(names[op] + '完成');
+  }catch(e){ toast(names[op] + '失败：' + (e.message||e), true); }
+  busy = false;
+}
+
+async function doUpgradeMulti(paths){
+  if (!confirm('确定更新选中的 ' + paths.length + ' 个项目吗？\n\n将拉取最新镜像并重建容器（docker compose up -d --pull always）。')) return;
+  busy = true;
+  try{
+    var okAll = true, errs = '';
+    for (var i=0;i<paths.length;i++){
+      try{
+        var d = await api('op_start', {action:'up', path:paths[i], pull:'1'});
+        if (d.error) throw new Error(d.error);
+        taskId = d.id;
+        openTask('更新 - ' + paths[i].split('/').pop());
+        await new Promise(function(res){ startTaskPoll('upgrade', function(){ res(); }); });
+      }catch(e){ okAll = false; errs += paths[i].split('/').pop() + ':' + (e.message||e) + '; '; }
+    }
+    selectedPaths = {};
+    refreshSel();
+    await load();
+    if (!okAll) toast('部分更新失败：' + errs, true); else toast('更新完成');
+  }catch(e){ toast('更新失败：' + (e.message||e), true); }
+  busy = false;
+}
+
+// 清理镜像引用中的叠加 tag：从后往前去掉不含 / 的段（tag），保留 registry:port/repo
+function cleanImageBase(full){
+  var parts = full.split(':');
+  while (parts.length > 1 && parts[parts.length-1].indexOf('/') < 0){ parts.pop(); }
+  return parts.join(':');
+}
+
+// ===== 升级弹窗（latest / 指定版本号） =====
+var upPath = null, upImage = '', upArch = '';
+async function openUp(path){
+  upPath = path;
+  $('upCur').value = '加载中…';
+  $('upArch').value = '检测中…';
+  upTip('');
+  upLogClear();
+  $('ovUp').classList.add('show');
+  fitDlgTitle($('ovUp'));
+  $('btnUpOk').disabled = true;
+  $('btnUpOk').textContent = '确认更新';
+  try{
+    var d = await api('yml_get', {path:path});
+    if (d.error) throw new Error(d.error);
+    var img = '';
+    var m = d.content.match(/^\s*image:\s*([^\s#]+)\s*$/m);
+    if (m) img = m[1];
+    upImage = img;
+    $('upCur').value = (img ? cleanImageBase(img.trim()) : '') || '未识别到镜像';
+    try{
+      var a = await api('arch', {});
+      upArch = (a && a.arch) || '';
+    }catch(e){ upArch = ''; }
+    $('upArch').value = upArch || '未知';
+    $('btnUpOk').disabled = false;
+    loadUpTags(img ? cleanImageBase(img.trim()) : '');
+  }catch(e){
+    $('upCur').value = '获取失败：' + (e.message||e);
+  }
+}
+// 查询并填充升级版本下拉：latest 置顶 + 数字版本降序
+function loadUpTags(repo){
+  var sel = $('upTags');
+  // 下拉加载完（无论结果）把当前选中值同步进手动输入框，避免默认选中 latest 却没写入导致点确认报"请选择版本"
+  var sync = function(){
+    var v = sel.value;
+    if (v && !$('upTagManual').value.trim()) $('upTagManual').value = v;
+  };
+  sel.innerHTML = '<option value="">加载版本中…</option>';
+  api('image_tags', {image:repo}).then(function(d){
+    if (d.error){ sel.innerHTML = '<option value="">查询失败：' + esc(d.error) + '</option>'; return; }
+    if (!d.tags || !d.tags.length){ sel.innerHTML = '<option value="latest">latest（跟随最新）</option>'; sync(); return; }
+    var nums = d.tags.filter(function(t){ return /^\d+(\.\d+)+$/.test(t); }).sort(function(a,b){
+      var pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+      for (var i=0;i<3;i++){ if ((pa[i]||0) !== (pb[i]||0)) return (pb[i]||0) - (pa[i]||0); }
+      return 0;
+    });
+    var opts = ['<option value="latest">latest（跟随最新）</option>'];
+    nums.forEach(function(t){ opts.push('<option value="' + esc(t) + '">' + esc(t) + '</option>'); });
+    sel.innerHTML = opts.join('');
+    var cur = upImage ? upImage.split(':').pop().trim() : '';
+    if (cur === 'latest') sel.value = 'latest';
+    else if (nums.indexOf(cur) >= 0) sel.value = cur;
+    sync();
+  }).catch(function(){
+    sel.innerHTML = '<option value="latest">latest（跟随最新）</option>';
+    sync();
+  });
+}
+$('btnUpQuery').onclick = function(){
+  if (!upImage){ toast('请先选择项目', true); return; }
+  loadUpTags(cleanImageBase(upImage.trim()));
+};
+$('upTags').onchange = function(){
+  if (this.value) $('upTagManual').value = this.value;
+};
+$('btnUpCancel').onclick = function(){ $('ovUp').classList.remove('show'); };
+$('btnUpClose').onclick = function(){ $('ovUp').classList.remove('show'); };
+$('btnUpMin').onclick = function(){ minimizeWindow('ovUp', '更新 ' + (upPath || '').split('/').pop(), upPath); };
+$('btnUpCopy').onclick = function(){ copyText($('upLog').textContent || ''); };
+$('btnUpOk').onclick = async function(){
+  var tag = ($('upTagManual').value.trim() || $('upTags').value || '').trim();
+  if (!tag){ toast('请选择或输入目标版本（latest 或版本号）', true); return; }
+  if (tag !== 'latest' && !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(tag)){ toast('请输入合法版本号（字母/数字/._-）', true); return; }
+  if (!upPath) return;
+  $('btnUpOk').disabled = true;
+  busy = true;
+  upLogClear();
+  try{
+    // 1. 先读配置（本地读取，快）：解析当前镜像和版本
+    upLog('[1/5] 读取 docker-compose.yml …', 'act');
+    $('btnUpOk').textContent = '正在读取配置…';
+    var d = await api('yml_get', {path:upPath});
+    if (d.error) throw new Error(d.error);
+    upLog('已读取配置 ✓', 'ok');
+    var m2 = d.content.match(/^(\s*image:\s*)([^\s#]+)(\s*#.*)?$/m);
+    if (!m2){ upTip('未找到可修改的镜像行', true); $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false; return; }
+    var base = cleanImageBase(m2[2].trim());
+    if (!base){ upTip('镜像名解析失败', true); $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false; return; }
+    var fullImg = m2[2].trim();
+    var curTag = fullImg.indexOf(':') >= 0 ? fullImg.split(':').pop() : 'latest';
+    // 目标 tag 与当前 tag 相同（典型 latest 场景）：后端对比本地/远端镜像 digest，才知道官方是否真发了新版
+    if (curTag === tag){
+      // 2. 请求后端检查
+      upLog('[2/5] 检查本地镜像与远端版本（比对镜像内容 digest）…', 'act');
+      $('btnUpOk').textContent = '正在检查是否有新版本…';
+      var chk0 = await api('up_check', {path:upPath, tag:tag});
+      upLogSteps(chk0 && chk0.steps);
+      if (chk0.error){ upTip(chk0.error, true); $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false; return; }
+      if (chk0.up_to_date){
+        upLog('[3/5] 检查完成：已是最新版，无需更新', 'ok');
+        upTip('已是最新版（' + base + ':' + tag + '，与远端一致），无需更新');
+        $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false;
+        return;
+      }
+      // 无法确认是否有新版（典型 docker.io 直连不可达）：不盲目拉取，明确提示原因与解决方式
+      if (chk0.unknown){
+        upLog('[3/5] 无法确认是否有新版，已取消更新', 'err');
+        upTip('无法确认是否有新版（镜像源 docker.io 网络不可达，非官方无更新）。建议：① 将 yml 镜像改为加速前缀（如 docker.1ms.run/xxx）后可正常检查与徽标提醒；② 或手动输入具体版本号更新', true);
+        $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false;
+        return;
+      }
+      // 3. 远端确认有新版本：提交后台更新任务
+      upLog('[3/5] 检测到新版本，提交拉取并启动任务…', 'act');
+      $('btnUpOk').textContent = '正在提交更新任务…';
+      var o0 = await api('op_start', {action:'up', path:upPath, pull:'1'});
+      if (o0.error) throw new Error(o0.error);
+      taskId = o0.id;
+      upLog('[4/5] 任务已提交（ID: ' + o0.id + '），正在后台拉取镜像并启动容器…', 'act');
+      $('ovUp').classList.remove('show');
+      toast('正在拉取 ' + base + ':' + tag + ' 最新版并启动…');
+      openTask('更新 - ' + upPath.split('/').pop());
+      startTaskPoll('upgrade', function(){ busy = false; load(); });
+      return;
+    }
+    // 2. 设备架构校验：不支持的版本直接拦截（仅在实际要更新时执行）
+    upLog('[2/5] 校验目标版本 ' + tag + ' 与设备架构…', 'act');
+    $('btnUpOk').textContent = '正在校验架构…';
+    var chk = await api('up_check', {path:upPath, tag:tag});
+    upLogSteps(chk && chk.steps);
+    if (chk.error){ upTip(chk.error, true); $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false; return; }
+    // 无法校验版本/架构（镜像源不可达）：不盲目保存与拉取，明确提示
+    if (chk.unknown){
+      upLog('[3/5] 无法校验目标版本，已取消更新', 'err');
+      upTip('无法校验版本 ' + tag + ' 是否存在及架构（镜像源网络不可达）。请确认版本号后重试，或改用加速前缀镜像', true);
+      $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false;
+      return;
+    }
+    if (chk.warn) upTip(chk.warn, false);
+    // 3. 保存配置（修改 yml 里的镜像 tag）
+    upLog('[3/5] 保存配置（image 改为 ' + base + ':' + tag + '）…', 'act');
+    $('btnUpOk').textContent = '正在保存配置…';
+    var yaml = d.content.replace(/^(\s*image:\s*)[^\s#]+(\s*#.*)?$/m, '$1' + base + ':' + tag + '$2');
+    if (yaml === d.content){ upTip('镜像版本未发生变化', true); $('btnUpOk').disabled = false; $('btnUpOk').textContent = '确认更新'; busy = false; return; }
+    var body = new URLSearchParams({path:upPath, name:d.name, content:yaml, src:'up'});
+    var s = await api('yml_save', null, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body:body});
+    if (s.error) throw new Error(s.error);
+    upLog('配置已保存 ✓', 'ok');
+    // 4. 提交后台更新任务
+    upLog('[4/5] 提交拉取并启动任务…', 'act');
+    $('btnUpOk').textContent = '正在提交更新任务…';
+    var o = await api('op_start', {action:'up', path:upPath, pull:'1'});
+    if (o.error) throw new Error(o.error);
+    taskId = o.id;
+    upLog('[5/5] 任务已提交（ID: ' + o.id + '），正在后台拉取镜像并启动容器…', 'act');
+    $('btnUpOk').disabled = false;
+    $('btnUpOk').textContent = '确认更新';
+    $('ovUp').classList.remove('show');
+    toast('已设置镜像版本 ' + tag + '，正在拉取并启动…');
+    openTask('更新 - ' + upPath.split('/').pop());
+    startTaskPoll('upgrade', function(){ busy = false; load(); });
+  }catch(e){
+    upLog('更新失败：' + (e.message || e), 'err');
+    upTip('更新失败：' + (e.message || e), true);
+    $('btnUpOk').disabled = false;
+    $('btnUpOk').textContent = '确认更新';
+    busy = false;
+  }
+};
+
+async function openLog(path){
+  $('ovLog').classList.add('show');
+  fitDlgTitle($('ovLog'));
+  $('logTitle').textContent = '日志 - ' + path.split('/').pop();
+  $('logText').value = '加载中…';
+  $('btnLogRefresh').disabled = true;
+  try{
+    var d = await api('logs', {path:path, tail:300});
+    if (d.error) throw new Error(d.error);
+    $('logText').value = cleanLog(d.log) || '(无输出)';
+    $('logText').scrollTop = $('logText').scrollHeight;
+  }catch(e){
+    $('logText').value = '获取失败：' + (e.message || e);
+  }
+  $('btnLogRefresh').disabled = false;
+  $('btnLogRefresh').onclick = function(){ openLog(path); };
+}
+$('btnLogClose').onclick = function(){ $('ovLog').classList.remove('show'); };
+$('btnLogClose2').onclick = function(){ $('ovLog').classList.remove('show'); };
+$('btnLogCopy').onclick = function(){ copyText($('logText').value); };
+
+// ===== 工作日志（设置 → 查看日志） =====
+function openWorkLog(){
+  $('ovWorkLog').classList.add('show');
+  fitDlgTitle($('ovWorkLog'));
+  loadWorkLog();
+}
+function loadWorkLog(){
+  $('wlContent').textContent = '加载中…';
+  api('log').then(function(d){
+    var src = $('wlSource').value;
+    var raw = src === 'autoup' ? (d.autoup || '') : (d.ops || '');
+    var typ = $('wlType').value;
+    if (src === 'ops' && typ){
+      if (typ === '更新'){
+        raw = raw.split('\n').filter(function(l){ return l.indexOf('[更新]') >= 0 || l.indexOf('[升级]') >= 0; }).join('\n');
+      }else{
+        raw = raw.split('\n').filter(function(l){ return l.indexOf('[' + typ + ']') >= 0; }).join('\n');
+      }
+    }
+    $('wlContent').textContent = raw || '（暂无日志）';
+  }).catch(function(e){
+    $('wlContent').textContent = '读取失败：' + (e.message || e);
+  });
+}
+$('btnOpenLog').onclick = openWorkLog;
+$('btnWorkLogCopy').onclick = function(){ copyText($('wlContent').textContent); };
+$('btnWorkLogClose').onclick = function(){ $('ovWorkLog').classList.remove('show'); };
+$('btnWorkLogOk').onclick = function(){ $('ovWorkLog').classList.remove('show'); };
+$('btnWorkLogRefresh').onclick = loadWorkLog;
+$('wlSource').onchange = function(){ $('wlType').disabled = (this.value === 'autoup'); loadWorkLog(); };
+$('wlType').onchange = loadWorkLog;
+// 日志管理：大小显示 + 清空
+function loadLogSize(){
+  api('log').then(function(d){
+    var ops = (d.ops || ''), au = (d.autoup || '');
+    function fmt(s){ return s.length > 1024 ? ((s.length/1024).toFixed(0) + 'KB') : (s.length + 'B'); }
+    $('logSizeInfo').textContent = '日志大小：操作 ' + fmt(ops) + ' / 自动更新 ' + fmt(au);
+  }).catch(function(){});
+}
+$('btnClearOps').onclick = function(){
+  if (!confirm('确定清空操作日志？')) return;
+  api('log_clear', {src:'ops'}).then(function(d){
+    toast('操作日志已清空');
+    loadLogSize(); loadWorkLog();
+  }).catch(function(e){ toast('清空失败：' + (e.message||e), true); });
+};
+$('btnClearAu').onclick = function(){
+  if (!confirm('确定清空自动更新日志？')) return;
+  api('log_clear', {src:'autoup'}).then(function(d){
+    toast('自动更新日志已清空');
+    loadLogSize(); loadWorkLog();
+  }).catch(function(e){ toast('清空失败：' + (e.message||e), true); });
+};
+
+// ===== 移动项目 =====
+function openMove(paths){
+  movePaths = paths.slice();
+  $('moveCur').value = (movePaths.length === 1 ? movePaths[0] : '将移动 ' + movePaths.length + ' 个项目');
+  $('moveNew').value = '';
+  $('ovMove').classList.add('show');
+  setTimeout(function(){ $('moveNew').focus(); }, 50);
+}
+$('btnMoveCancel').onclick = function(){ $('ovMove').classList.remove('show'); };
+$('btnMoveClose').onclick = function(){ $('ovMove').classList.remove('show'); };
+$('btnMoveOk').onclick = async function(){
+  var np = $('moveNew').value.trim();
+  if (!np || !np.startsWith('/')){ toast('请输入绝对路径（以 / 开头）', true); return; }
+  if (movePaths.length === 1 && np === movePaths[0]){ toast('新路径不能与原路径相同', true); return; }
+  if (!confirm('确定移动选中的 ' + movePaths.length + ' 个项目吗？\n\n将停止容器 → 移动整个目录 → 在新路径重新启动。')) return;
+  $('btnMoveOk').disabled = true;
+  try{
+    var errs = '';
+    for (var i=0;i<movePaths.length;i++){
+      try{
+        var d = await api('move', {path: movePaths[i], newpath: np});
+        if (d.error) throw new Error(d.error);
+        var o = await api('op_start', {action:'up', path: d.dir});
+        if (o.error) throw new Error(o.error);
+        taskId = o.id;
+        openTask('移动启动 - ' + (d.name || np.split('/').pop()));
+        await new Promise(function(res){ startTaskPoll('up', function(){ res(); }); });
+      }catch(e){ errs += movePaths[i].split('/').pop() + ':' + (e.message||e) + '; '; }
+    }
+    $('ovMove').classList.remove('show');
+    selectedPaths = {};
+    refreshSel();
+    try{ await load(); }
+    catch(e){ toast('项目已移动，但列表刷新失败：' + (e.message||e), true); }
+    if (errs) toast('部分移动失败：' + errs, true); else toast('移动完成，已在新路径启动');
+  }catch(e){
+    toast('移动失败：' + (e.message||e), true);
+    $('btnMoveOk').disabled = false;
+  }
+};
+
+// ===== 编辑（两列） =====
+var editState = { parsed: null };
+
+async function openEdit(path){
+  editPath = path;
+  $('ovEdit').classList.add('show');
+  fitDlgTitle($('ovEdit'));
+  $('editTitle').textContent = '编辑 - ' + path.split('/').pop();
+  $('editText').value = '加载中…';
+  $('editForm').innerHTML = '<div class="tip">加载中…</div>';
+  $('btnEditSave').disabled = true;
+  try{
+    var d = await api('yml_get', {path:path});
+    if (d.error) throw new Error(d.error);
+    editName = d.name;
+    $('editTitle').textContent = '编辑 - ' + path.split('/').pop() + '/' + d.name;
+    fitDlgTitle($('ovEdit'));
+    $('editText').value = d.content;
+    editState.parsed = parseCompose(d.content);
+    renderAndBind($('editForm'), $('editText'), editState);
+    bindCodeParse($('editText'), $('editForm'), editState);
+  }catch(e){
+    $('editText').value = '获取失败：' + (e.message || e);
+    $('editForm').innerHTML = '<div class="tip">获取失败：' + esc(e.message || e) + '</div>';
+  }
+  $('btnEditSave').disabled = false;
+}
+$('btnEditCancel').onclick = function(){ $('ovEdit').classList.remove('show'); };
+$('btnEditClose').onclick = function(){ $('ovEdit').classList.remove('show'); };
+$('btnEditSave').onclick = async function(){
+  if (!editPath || !editName) return;
+  var content = $('editText').value;
+  $('btnEditSave').disabled = true;
+  try{
+    var body = new URLSearchParams({path:editPath, name:editName, content:content});
+    var d = await api('yml_save', null, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body:body});
+    if (d.error) throw new Error(d.error);
+    toast('已保存');
+    $('ovEdit').classList.remove('show');
+  }catch(e){
+    toast('保存失败：' + (e.message || e), true);
+    $('btnEditSave').disabled = false;
+  }
+};
+
+// ===== 新建（两列） =====
+var newState = { parsed: null };
+
+function setSrc(m){
+  srcMode = m;
+  $('srcCreate').className = 'opt' + (m === 'create' ? ' on' : '');
+  $('srcUpload').className = 'opt' + (m === 'upload' ? ' on' : '');
+  $('fldUp').style.display = m === 'upload' ? '' : 'none';
+  if (m === 'create' && !$('newCode').value) $('newCode').value = TEMPLATE;
+}
+function syncDirPath(){
+  var n = $('newName').value;
+  var dn = toPinyin(n);
+  $('newDirName').value = dn;
+  $('newPath').value = curDir + '/' + (dn || '目录名');
+}
+$('newName').addEventListener('input', syncDirPath);
+$('newDirName').addEventListener('input', function(){
+  $('newPath').value = curDir + '/' + (this.value.trim() || '目录名');
+});
+
+// 删除确认
+$('btnDelCancel').onclick = function(){ $('ovDel').classList.remove('show'); };
+$('btnDelClose').onclick = function(){ $('ovDel').classList.remove('show'); };
+$('btnDelOk').onclick = function(){ $('ovDel').classList.remove('show'); runDelete(); };
+$('btnCpCancel').onclick = function(){ $('ovCp').classList.remove('show'); };
+$('btnCpClose').onclick = function(){ $('ovCp').classList.remove('show'); };
+$('btnCopy').onclick = function(){
+  if (this.disabled || busy) return;
+  var paths = Object.keys(selectedPaths);
+  if (paths.length !== 1){ toast('请先单选一个项目', true); return; }
+  var p = paths[0];
+  if (!confirm('确定复制项目「' + p.split('/').pop() + '」的代码吗？')) return;
+  copyCompose(p);
+};
+// 同步未托管容器：先扫描，有新增才弹窗确认，无新增不执行
+$('btnSync').onclick = async function(){
+  if (busy) return;
+  if (syncPending === 0){ toast('暂无未托管的容器，无需同步'); return; }
+  busy = true;
+  try{
+    var d = await api('sync');
+    if (d.error) throw new Error(d.error);
+    if (!d.count || !d.pending || d.pending.length === 0){
+      toast('暂无未托管的容器，无需同步');
+      return;
+    }
+    $('syncTip').textContent = '发现 ' + d.pending.length + ' 个未托管容器，确认项目名与备注后同步：';
+    $('syncList').innerHTML = d.pending.map(function(n){
+      return '<div class="syncrow" style="margin-bottom:8px">'
+        + '<div style="display:flex;align-items:center;gap:6px">'
+        + '<input class="sn" value="' + esc(n) + '" placeholder="项目名（英文/数字/下划线）" style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px">'
+        + '<span style="font-size:11px;color:#64748b;white-space:nowrap">容器：' + esc(n) + '</span>'
+        + '</div>'
+        + '<input class="snote" placeholder="备注（可选，支持中文）" style="width:100%;margin-top:4px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px">'
+        + '</div>';
+    }).join('');
+    $('ovSync').classList.add('show');
+  }catch(e){
+    toast('扫描失败：' + (e.message || e), true);
+  }finally{
+    busy = false;
+  }
+};
+$('btnSyncCancel').onclick = function(){ $('ovSync').classList.remove('show'); };
+$('btnSyncClose').onclick = function(){ $('ovSync').classList.remove('show'); };
+// 修改项目备注弹窗
+$('btnNoteCancel').onclick = function(){ $('ovNote').classList.remove('show'); };
+$('btnNoteClose').onclick = function(){ $('ovNote').classList.remove('show'); };
+$('noteVal').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btnNoteOk').click(); });
+$('btnNoteOk').onclick = async function(){
+  var btn = $('btnNoteOk');
+  btn.disabled = true;
+  try{
+    var note = $('noteVal').value.trim();
+    var d = await api('note_save', {path:notePath, note:note});
+    if (d.error) throw new Error(d.error);
+    $('ovNote').classList.remove('show');
+    toast(note ? '备注已更新' : '备注已清空');
+    load();
+  }catch(e){
+    toast('保存失败：' + (e.message || e), true);
+  }
+  btn.disabled = false;
+};
+$('btnSyncOk').onclick = async function(){
+  var btn = $('btnSyncOk');
+  btn.disabled = true;
+  try{
+    var items = [];
+    var bad = null;
+    document.querySelectorAll('#syncList .syncrow').forEach(function(r){
+      var sn = r.querySelector('.sn');
+      var nt = r.querySelector('.snote');
+      var v = sn ? sn.value.trim() : '';
+      if (!bad){
+        if (!v) bad = '项目名不能为空';
+        else if (!/^[A-Za-z0-9_-]+$/.test(v)) bad = '项目名「' + v + '」需为英文/数字/下划线（Docker 项目名限制）';
+      }
+      items.push({name: v, note: nt ? nt.value.trim() : ''});
+    });
+    if (bad){ toast(bad, true); return; }
+    // 逐个容器同步，显示真实进度
+    var bar = $('syncBar'), fill = $('syncBarFill'), ttxt = $('syncBarTxt');
+    if (bar) bar.style.display = 'block';
+    var okN = 0, failN = 0;
+    for (var i=0;i<items.length;i++){
+      var pct = Math.round((i / items.length) * 100);
+      if (fill) fill.style.width = pct + '%';
+      if (ttxt) ttxt.textContent = '同步 ' + i + '/' + items.length + '：' + items[i].name + '…';
+      try{
+        var d = await api('sync', {confirm:'1', only: items[i].name, items: JSON.stringify([{name: items[i].name, note: items[i].note}])});
+        if (d.error) throw new Error(d.error);
+        var list = d.added || [];
+        var x = list.length ? list[0] : {ok:false, msg:'无返回'};
+        if (x.ok) okN++; else failN++;
+      }catch(e){ failN++; }
+    }
+    if (fill) fill.style.width = '100%';
+    if (ttxt) ttxt.textContent = '完成：成功 ' + okN + ' 个，失败 ' + failN + ' 个';
+    $('ovSync').classList.remove('show');
+    toast('同步完成：成功 ' + okN + ' 个' + (failN > 0 ? '，失败 ' + failN + ' 个' : ''));
+    load();
+  }catch(e){
+    toast('同步失败：' + (e.message || e), true);
+  }
+  btn.disabled = false;
+};
+$('btnCpCopy').onclick = function(){
+  var ta = $('cpCode');
+  ta.select(); ta.setSelectionRange(0, ta.value.length);
+  var ok = false;
+  try{ ok = document.execCommand('copy'); }catch(e){}
+  toast(ok ? '已复制到剪贴板' : '请手动长按选择复制');
+  if (ok) $('ovCp').classList.remove('show');
+};
+var copySrc = null;
+$('btnCopyDlgCancel').onclick = function(){ $('ovCopy').classList.remove('show'); };
+$('btnCopyDlgClose').onclick = function(){ $('ovCopy').classList.remove('show'); };
+$('copyName').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('copyPort').focus(); });
+$('copyPort').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btnCopyOk').click(); });
+function setCopyBar(pct, txt){
+  var b = $('copyBar'), f = $('copyBarFill'), t = $('copyBarTxt');
+  if (!b || !f || !t) return;
+  b.style.display = 'block';
+  f.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  t.textContent = txt || Math.round(pct) + '%';
+}
+$('btnCopyOk').onclick = doCopyProject;
+async function doCopyProject(){
+  var nm = $('copyName').value.trim();
+  var port = $('copyPort').value.trim();
+  if (!nm){ toast('请输入项目名称', true); return; }
+  if (!/^\d+$/.test(port)){ toast('请输入正确端口号', true); return; }
+  var dn = toPinyin(nm);
+  if (!validDirName(dn)){ toast('名称转拼音后不合法（仅英文/数字/下划线）', true); return; }
+  if (!copySrc){ toast('缺少源项目', true); return; }
+  $('btnCopyOk').disabled = true;
+  setCopyBar(8, '读取源配置…');
+  try{
+    var d = await api('yml_get', {path:copySrc});
+    if (d.error) throw new Error(d.error);
+    var content = d.content || '';
+    if (!content.trim()) throw new Error('源项目无配置内容');
+    setCopyBar(40, '生成新配置…');
+    // 1. 仅替换「根目录内的项目路径段」：外部挂载路径（如 /mnt/usb1-1/xiaomusic/music）与镜像名保持原样，
+    //    避免把 hanxi/xiaomusic:latest 误改成 xiaomusic_2 导致镜像拉取失败
+    var srcBase = copySrc.replace(/\/+$/,'').split('/').pop();
+    var rootDir = String(curDir || '').replace(/\/+$/,'');
+    if (srcBase && srcBase !== dn && rootDir){
+      var rootEsc = rootDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      var srcEsc = srcBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      content = content.replace(new RegExp(rootEsc + '/' + srcEsc + '\\b', 'g'), rootDir + '/' + dn);
+    }
+    // 1.5 外部挂载路径（根目录外）勾选后跟随新项目名
+    if (srcBase){
+      var srcEscX = srcBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      document.querySelectorAll('#copyExtList input.copyext:checked').forEach(function(cb){
+        var v = cb.getAttribute('data-v');
+        if (!v) return;
+        var nv = v.replace(new RegExp(srcEscX + '\\b', 'g'), dn);
+        if (nv !== v) content = content.split(v).join(nv);
+      });
+    }
+    // 2. 容器名跟随新项目名拼音（兜底），CONTAINER_NAME 剥引号后重包（避免双层引号）
+    var projSafe = dn.replace(/[^A-Za-z0-9_.-]/g, '_');
+    content = content.replace(/^(\s*container_name:\s*)\S+/m, '$1' + projSafe);
+    content = content.replace(/("?)CONTAINER_NAME="?[^"\r\n]*"?/g, '"CONTAINER_NAME=' + projSafe + '"');
+    // 3. 端口替换为用户输入的新端口；PANEL_PORT 同步顺延
+    content = content.replace(/(\s*-\s*")\d+:\d+(")/g, '$1' + port + ':' + port + '$2');
+    content = content.replace(/(PANEL_PORT=)\d+/g, '$1' + port);
+    setCopyBar(70, '创建项目…');
+    // 4. 走新建接口（目录创建/端口冲突自动顺延/中文备注）
+    var body = new URLSearchParams({name:dn, content:content, start:0, note:nm, src:'copy'});
+    var r = await api('new', null, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body:body});
+    if (r.error) throw new Error(r.error);
+    setCopyBar(100, '完成');
+    $('ovCopy').classList.remove('show');
+    toast(r.notice ? ('已复制，' + r.notice) : '项目复制成功');
+    load();
+  }catch(e){
+    toast('复制失败：' + (e.message || e), true);
+  }finally{
+    $('btnCopyOk').disabled = false;
+    var cb = $('copyBar'); if (cb) cb.style.display = 'none';
+  }
+}
+async function runDelete(){
+  busy = true; toast('正在删除…');
+  try{
+    var keep = $('delKeepData').checked ? '1' : '0';
+    var keepC = $('delKeepContainer').checked ? '1' : '0';
+    var okAll = true, errs = '';
+    for (var i=0;i<delPaths.length;i++){
+      try{
+        var d = await api('delete', {path:delPaths[i], keep_data:keep, keep_container:keepC});
+        if (d.error) throw new Error(d.error);
+      }catch(e){ okAll = false; errs += delPaths[i].split('/').pop() + ':' + (e.message||e) + '; '; }
+    }
+    selectedPaths = {};
+    refreshSel();
+    await load();
+    if (!okAll) toast('部分删除失败：' + errs, true);
+    else if (keepC === '1' && keep === '1') toast('已删除项目配置（容器保留运行，数据已保留）');
+    else if (keepC === '1') toast('已删除项目（容器保留运行）');
+    else toast('已删除');
+  }catch(e){ toast('删除失败：' + (e.message||e), true); }
+  busy = false;
+}
+
+$('btnNew').onclick = async function(){
+  $('newName').value = '';
+  $('newCode').value = TEMPLATE;
+  $('newStart').checked = false;
+  $('upFn').textContent = '';
+  $('newMapDir').value = '';
+  syncDirPath();
+  setSrc('create');
+  try{
+    var g = await api('settings_get');
+    if (!g.error && g.settings) $('newMapDir').value = g.settings.default_map_dir || '';
+  }catch(e){}
+  newState.parsed = parseCompose(TEMPLATE);
+  renderNewMP(false);
+  $('ovNew').classList.add('show');
+  setTimeout(function(){ $('newName').focus(); }, 50);
+  startClipPoll();
+};
+// 映射路径与端口：读取代码自动顺延 + 勾选自动映射时只读
+var newMP = { maps: [], ports: [] };
+var newCodeDeb = null;
+function usedHostPorts(){
+  var used = {};
+  (window.__entries || []).forEach(function(it){
+    var ps = it.ports;
+    if (!Array.isArray(ps)) ps = ps ? Object.values(ps) : [];
+    ps.forEach(function(p){
+      var m = String(p).match(/^(\d+)/);
+      if (m) used[m[1]] = true;
+    });
+  });
+  return used;
+}
+function renderNewMP(silent){
+  var mapsEl = $('newMaps'), portsEl = $('newPorts'), nameEl = $('newNameRow');
+  if (!mapsEl) return;
+  var p = parseCompose($('newCode').value);
+  newState.parsed = p;
+  newMP = { name: '', maps: [], ports: [] };
+  var used = usedHostPorts();
+  var shifted = [];
+  if (p){
+    p.services.forEach(function(svc){
+      if (!newMP.name) newMP.name = svc.container_name || '';
+      var blkP = svc.blocks.ports;
+      var pItems = (blkP && blkP.items) || svc.ports || [];
+      pItems.forEach(function(it){
+        var v = String(it.v || '').replace(/^"(.*)"$/,'$1').trim();
+        var m = v.match(/^(?:([\d.]+):)?(\d+):(\d+)(\/tcp|\/udp)?$/i);
+        if (m){
+          var orig = m[2], nv = orig;
+          while (used[nv]){ nv = (parseInt(nv,10) + 1).toString(); }
+          used[nv] = true;
+          if (nv !== orig){
+            var ml = p.lines[it.line].match(/^(\s*)/);
+            p.lines[it.line] = ml[1] + '- ' + (m[1]||'') + nv + ':' + m[3] + (m[4]||'');
+            shifted.push(orig + ' → ' + nv);
+          }
+          newMP.ports.push({line: it.line, disp:(m[1]||'') + nv + ':' + m[3] + (m[4]||'')});
+        } else if (/^\d+$/.test(v)){
+          newMP.ports.push({line: it.line, disp:v});
+        }
+      });
+      var blkV = svc.blocks.volumes;
+      var vItems = (blkV && blkV.items) || svc.volumes || [];
+      vItems.forEach(function(it){
+        newMP.maps.push({line: it.line, disp: String(it.v || '').replace(/^"(.*)"$/,'$1')});
+      });
+    });
+  }
+  if (shifted.length && p){ $('newCode').value = p.lines.join('\n'); if (!silent) toast('端口已自动顺延：' + shifted.join('、')); }
+  // 容器名行
+  var roName = $('newAutoName').checked;
+  nameEl.innerHTML = roName
+    ? '<div class="mp-item ro"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">' + esc(newMP.name || '跟随项目名') + '</span><span class="mp-lock">🔒</span></div>'
+    : '<div class="mp-item"><input data-mp="n" value="' + esc(newMP.name || '') + '" placeholder="留空则不写容器名"></div>';
+  // 映射路径行（列表）
+  var roMap = $('newAutoMap').checked;
+  var mh = '';
+  if (!newMP.maps.length) mh = '<div class="mp-item ro"><span class="mp-none">未检测到挂载卷</span></div>';
+  newMP.maps.forEach(function(it, i){
+    mh += '<div class="mp-item' + (roMap ? ' ro' : '') + '">' + (roMap
+      ? '<span style="flex:1;overflow:hidden;text-overflow:ellipsis">' + esc(it.disp) + '</span><span class="mp-lock">🔒</span>'
+      : '<input data-mp="m" data-i="' + i + '" value="' + esc(it.disp) + '">') + '</div>';
+  });
+  mapsEl.innerHTML = mh;
+  // 端口行（列表）
+  var roPorts = $('newAutoPorts').checked;
+  var ph = '';
+  if (!newMP.ports.length) ph = '<div class="mp-item ro"><span class="mp-none">未检测到端口映射</span></div>';
+  newMP.ports.forEach(function(it, i){
+    ph += '<div class="mp-item' + (roPorts ? ' ro' : '') + '">' + (roPorts
+      ? '<span style="flex:1;overflow:hidden;text-overflow:ellipsis">' + esc(it.disp) + '</span><span class="mp-lock">🔒</span>'
+      : '<input data-mp="p" data-i="' + i + '" value="' + esc(it.disp) + '">') + '</div>';
+  });
+  portsEl.innerHTML = ph;
+  // 可编辑绑定
+  if (!roName){
+    nameEl.querySelectorAll('input[data-mp="n"]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        if (!newState.parsed) return;
+        newState.parsed.services.forEach(function(svc){
+          var ln = svc.fLines.container_name;
+          if (ln !== undefined && newState.parsed.lines[ln] !== undefined){
+            var mm = newState.parsed.lines[ln].match(/^(\s*container_name:)(.*)$/);
+            if (mm) newState.parsed.lines[ln] = mm[1] + (inp.value ? ' ' + inp.value : '');
+          }
+        });
+        $('newCode').value = newState.parsed.lines.join('\n');
+      });
+    });
+  }
+  if (!roMap){
+    mapsEl.querySelectorAll('input[data-mp="m"]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var idx = parseInt(inp.getAttribute('data-i'));
+        var it = newMP.maps[idx];
+        if (!it || !newState.parsed) return;
+        var ml = newState.parsed.lines[it.line].match(/^(\s*)/);
+        newState.parsed.lines[it.line] = ml[1] + '- ' + inp.value;
+        $('newCode').value = newState.parsed.lines.join('\n');
+      });
+    });
+  }
+  if (!roPorts){
+    portsEl.querySelectorAll('input[data-mp="p"]').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var idx = parseInt(inp.getAttribute('data-i'));
+        var it = newMP.ports[idx];
+        if (!it || !newState.parsed) return;
+        var ml = newState.parsed.lines[it.line].match(/^(\s*)/);
+        newState.parsed.lines[it.line] = ml[1] + '- ' + inp.value;
+        $('newCode').value = newState.parsed.lines.join('\n');
+      });
+    });
+  }
+}
+$('newCode').addEventListener('input', function(){
+  clearTimeout(newCodeDeb);
+  newCodeDeb = setTimeout(function(){ renderNewMP(true); }, 400);
+});
+$('newAutoMap').addEventListener('change', function(){ renderNewMP(true); });
+$('newAutoName').addEventListener('change', function(){ renderNewMP(true); });
+$('newAutoPorts').addEventListener('change', function(){ renderNewMP(true); });
+$('btnNewClose').onclick = function(){ $('ovNew').classList.remove('show'); stopClipPoll(); };
+$('btnNewCancel').onclick = function(){ $('ovNew').classList.remove('show'); stopClipPoll(); };
+
+// 一键粘贴代码：HTTPS 下浏览器允许自动读取剪贴板（轮询检测亮起 + 确认后自动粘贴）；
+// HTTP 下浏览器安全限制无法自动读取，降级为「亮起基于粘贴事件 + 确认后聚焦提示 Ctrl+V」
+var hasPasteClip = false;
+var clipTimer = null;
+function clipOK(){ return !!(window.navigator.clipboard && window.navigator.clipboard.readText); }
+function updPasteBtn(){
+  var b = $('btnNewPaste');
+  if (!b) return;
+  if (hasPasteClip){ b.classList.add('on'); b.classList.remove('off'); }
+  else { b.classList.remove('on'); b.classList.add('off'); }
+}
+function startClipPoll(){
+  if (!clipOK()) return;
+  stopClipPoll();
+  clipTimer = setInterval(function(){
+    try{
+      navigator.clipboard.readText().then(function(t){
+        var has = !!(t && t.length > 0);
+        if (has !== hasPasteClip){ hasPasteClip = has; updPasteBtn(); }
+      }).catch(function(){});
+    }catch(e){}
+  }, 1500);
+}
+function stopClipPoll(){ if (clipTimer){ clearInterval(clipTimer); clipTimer = null; } }
+function focusCode(){ var ta = $('newCode'); setTimeout(function(){ try{ ta.focus(); }catch(e){} }, 60); }
+document.addEventListener('paste', function(){ hasPasteClip = true; updPasteBtn(); });
+$('btnNewPaste').onclick = function(){
+  if (busy) return;
+  if (clipOK()){
+    try{
+      navigator.clipboard.readText().then(function(t){
+        hasPasteClip = !!(t && t.length);
+        updPasteBtn();
+        if (!hasPasteClip) toast('剪贴板为空，请先复制代码再粘贴');
+        $('ovPaste').classList.add('show');
+      }).catch(function(){ $('ovPaste').classList.add('show'); });
+      return;
+    }catch(e){}
+  }
+  if (!hasPasteClip) toast('未检测到剪贴板代码，确认后请按 Ctrl+V 粘贴');
+  $('ovPaste').classList.add('show');
+};
+$('btnPasteOk').onclick = function(){
+  $('ovPaste').classList.remove('show');
+  var ta = $('newCode');
+  ta.value = '';
+  if (clipOK()){
+    try{
+      navigator.clipboard.readText().then(function(t){
+        if (t && t.length){
+          ta.value = t;
+          try{ ta.dispatchEvent(new Event('input')); }catch(e){}
+          hasPasteClip = false; updPasteBtn();
+          toast('已自动粘贴剪贴板代码');
+        } else {
+          hasPasteClip = false; updPasteBtn();
+          focusCode();
+          toast('剪贴板为空，请按 Ctrl+V 粘贴');
+        }
+      }).catch(function(){
+        hasPasteClip = false; updPasteBtn();
+        focusCode();
+        toast('浏览器未授权读取剪贴板，请按 Ctrl+V 粘贴');
+      });
+    }catch(e){
+      hasPasteClip = false; updPasteBtn();
+      focusCode();
+      toast('读取剪贴板失败，请按 Ctrl+V 粘贴');
+    }
+  } else {
+    hasPasteClip = false; updPasteBtn();
+    focusCode();
+    toast('代码窗口已清空并聚焦，请按 Ctrl+V 粘贴（HTTP 页面浏览器限制）');
+  }
+};
+$('btnPasteCancel').onclick = $('btnPasteClose').onclick = function(){ $('ovPaste').classList.remove('show'); };
+
+$('upBox').onclick = function(){ $('upFile').click(); };
+$('upFile').addEventListener('change', function(){
+  var f = this.files[0];
+  if (!f) return;
+  $('upFn').textContent = f.name;
+  var r = new FileReader();
+  r.onload = function(){
+    $('newCode').value = r.result;
+    newState.parsed = parseCompose(r.result);
+    renderNewMP(true);
+    toast('已读取 ' + f.name + '（' + f.size + ' 字节）');
+  };
+  r.readAsText(f);
+});
+
+$('btnNewOk').onclick = async function(){
+  var dn = $('newDirName').value.trim();
+  if (!dn){ toast('请输入项目名称', true); return; }
+  if (!validDirName(dn)){ toast('目录名仅支持英文/数字/下划线/连字符', true); return; }
+  renderNewMP(true);
+  var content = $('newCode').value;
+  if (!content.trim()){ toast('请填写 docker-compose.yml 内容', true); return; }
+  // 自动映射挂载路径到项目目录（绝对路径 → ./最后一级）
+  if ($('newAutoMap').checked){
+    var st = parseCompose(content);
+    if (st){
+      autoMapVolumes(st);
+      content = st.lines.join('\n');
+      $('newCode').value = content;
+    }
+  }
+  // 自动修改容器名（勾选时容器名跟随项目名拼音，统一简洁；同步改 CONTAINER_NAME 环境变量）
+  var stN = parseCompose(content);
+  if (stN && $('newAutoName').checked){
+    var projSafe = dn.replace(/[^A-Za-z0-9_.-]/g, '_');
+    var renamed = [];
+    stN.services.forEach(function(svc){
+      var old = svc.container_name;
+      if (!old) return;
+      var nn = projSafe;
+      var ln = svc.fLines.container_name;
+      if (ln !== undefined && stN.lines[ln] !== undefined){
+        var m = stN.lines[ln].match(/^(\s*container_name:)(.*)$/);
+        if (m) stN.lines[ln] = m[1] + ' ' + nn;
+      }
+      var envb = svc.blocks.environment;
+      if (envb){
+        var pad = ' '.repeat(envb.indent + 2);
+        envb.items.forEach(function(it){
+          var mm = String(it.v).match(/^(CONTAINER_NAME=)(.*)$/);
+          if (mm) stN.lines[it.line] = pad + '- ' + mm[1] + nn;
+        });
+      }
+      if (old !== nn) renamed.push(old + ' → ' + nn);
+    });
+    content = stN.lines.join('\n');
+    $('newCode').value = content;
+    if (renamed.length) toast('容器名已自动改为项目名：' + renamed.join('、'));
+  }
+  // 无 services: 段时自动包装为标准 compose（服务名感知：直接贴服务体时把配置挂到服务名下）
+  if (!/^\s*services:\s*$/m.test(content)){
+    var st2 = parseCompose(content);
+    var svcName = (st2 && st2.services.length === 1 && st2.services[0].name) ? st2.services[0].name : 'app';
+    svcName = svcName.replace(/[^A-Za-z0-9_.-]/g, '_') || 'app';
+    var body = content.split('\n');
+    if (st2 && st2.services.length === 1){
+      var first = (body[0] || '').trim();
+      if (/^[A-Za-z0-9_.-]+:\s*$/.test(first) && first.replace(/[:\s]/g,'') === st2.services[0].name){
+        body = body.slice(1);
+      }
+    }
+    content = 'services:\n  ' + svcName + ':\n' + body.map(function(l){ return l.trim() ? '    ' + l : l; }).join('\n');
+  }
+  $('btnNewOk').disabled = true;
+  try{
+    var start = $('newStart').checked ? '1' : '0';
+    var body = new URLSearchParams({name:dn, content:content, start:start, note:$('newName').value.trim()});
+    var d = await api('new', null, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body:body});
+    if (d.error) throw new Error(d.error);
+    if (d.notice) toast(d.notice);
+    $('ovNew').classList.remove('show');
+    await load();
+    if (start === '1'){
+      busy = true;
+      var s2 = await api('op_start', {action:'up', path:d.dir});
+      if (s2.error) throw new Error(s2.error);
+      taskId = s2.id;
+      openTask('启动 - ' + dn);
+      startTaskPoll('up', function(){ busy = false; load(); });
+    } else {
+      toast('已创建');
+    }
+  }catch(e){
+    toast('创建失败：' + (e.message || e), true);
+    $('btnNewOk').disabled = false;
+  }
+  $('btnNewOk').disabled = false;
+};
+$('newName').addEventListener('keydown', function(e){ if (e.key === 'Enter') $('btnNewOk').click(); });
+
+// 设置
+$('btnSettings').onclick = async function(){
+  $('setDir').value = curDir;
+  $('setMapDir').value = '';
+  try{
+    var g = await api('settings_get');
+    if (!g.error && g.settings){
+      $('setMapDir').value = g.settings.default_map_dir || '';
+      var auto = g.settings.mirror_mode !== 'manual';
+      $('setMirrorAuto').checked = auto;
+      fillMirrorRows(auto ? (g.settings.sys_mirrors && g.settings.sys_mirrors.length ? g.settings.sys_mirrors : g.settings.check_mirrors) : g.settings.check_mirrors);
+      setMirrorEditable();
+      var kd = parseInt(g.settings.log_keep_days, 10) || 0;
+      $('setAutoCleanLog').checked = kd > 0;
+      $('setLogKeepDays').value = kd > 0 ? kd : 7;
+    }
+  }catch(e){}
+  loadLogSize();
+  $('ovSet').classList.add('show');
+};
+// 镜像加速地址多行输入
+function mirrorRowHtml(v){
+  var s = '<div class="mrrow" style="display:flex;align-items:center;gap:6px;margin-top:6px">';
+  s += '<input type="text" class="mrinput" placeholder="docker.1ms.run" autocomplete="off" value="' + (v || '') + '" style="flex:1;padding:8px 10px;border:1px solid var(--line,#ddd);border-radius:8px;font-size:14px">';
+  s += '<button class="mrdel" style="background:none;border:none;color:#999;font-size:16px;cursor:pointer;line-height:1;padding:4px" title="删除该行">×</button>';
+  s += '</div>';
+  return s;
+}
+function fillMirrorRows(vals){
+  var box = $('setMirrorBox');
+  box.innerHTML = '';
+  var list = (vals || []).slice();
+  while (list.length < 3) list.push('');
+  for (var i = 0; i < list.length; i++) box.insertAdjacentHTML('beforeend', mirrorRowHtml(list[i]));
+}
+function mirrorValues(){
+  var out = [];
+  var rows = $('setMirrorBox').querySelectorAll('.mrinput');
+  for (var i = 0; i < rows.length; i++){
+    var v = rows[i].value.trim();
+    if (v) out.push(v);
+  }
+  return out;
+}
+function setMirrorEditable(){
+  var auto = $('setMirrorAuto').checked;
+  var inputs = $('setMirrorBox').querySelectorAll('.mrinput');
+  for (var i = 0; i < inputs.length; i++) inputs[i].disabled = auto;
+  $('btnMirrorAdd').disabled = auto;
+  $('btnMirrorAdd').style.opacity = auto ? '0.5' : '1';
+  $('btnMirrorAdd').style.cursor = auto ? 'not-allowed' : 'pointer';
+}
+$('setMirrorAuto').onchange = function(){ setMirrorEditable(); };
+$('btnMirrorAdd').onclick = function(){
+  var box = $('setMirrorBox');
+  box.insertAdjacentHTML('beforeend', mirrorRowHtml(''));
+  var inputs = box.querySelectorAll('.mrinput');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+};
+$('setMirrorBox').addEventListener('click', function(e){
+  if (!e.target || e.target.className !== 'mrdel') return;
+  var rows = this.querySelectorAll('.mrrow');
+  if (rows.length <= 1){ toast('至少保留一个加速地址', true); return; }
+  var row = e.target.closest('.mrrow');
+  if (row) row.remove();
+});
+$('btnSetCancel').onclick = function(){ $('ovSet').classList.remove('show'); };
+$('btnSetClose').onclick = function(){ $('ovSet').classList.remove('show'); };
+$('btnSetSave').onclick = async function(){
+  var dir = $('setDir').value.trim();
+  if (!dir){ toast('请输入目录', true); return; }
+  $('btnSetSave').disabled = true;
+  try{
+    var logKeep = $('setAutoCleanLog').checked ? (parseInt($('setLogKeepDays').value, 10) || 7) : 0;
+    if (logKeep < 0) logKeep = 0;
+    if (logKeep > 365) logKeep = 365;
+    var d = await api('settings_save', {dir:dir, default_map_dir:$('setMapDir').value.trim(), log_keep_days:String(logKeep), check_mirrors:mirrorValues().join(','), mirror_mode:$('setMirrorAuto').checked ? 'auto' : 'manual'});
+    if (d.error) throw new Error(d.error);
+    toast('目录已保存' + (d.created ? '（已自动创建）' : '') + (logKeep > 0 ? '（日志保留 ' + logKeep + ' 天）' : '（日志不自动清理）'));
+    $('ovSet').classList.remove('show');
+    await load();
+  }catch(e){
+    toast('保存失败：' + (e.message || e), true);
+  }
+  $('btnSetSave').disabled = false;
+};
+
+$('appVer').textContent = 'v' + APP_VER;
+$('btnRefresh').onclick = load;
+
+// ===== 自动更新 =====
+async function updateAutoUpBtn(){
+  try{
+    var s = (await api('settings_get')).settings || {};
+    var on = !!s.autoup_enabled;
+    var b = $('btnAutoUp');
+    b.classList.toggle('on', on);
+    b.classList.toggle('off', !on);
+    if (on){
+      var t = s.autoup_time || '';
+      var tstr = t.replace(/,/g, '、');
+      var mode = s.autoup_mode || 'daily';
+      var dd;
+      if (mode === 'interval'){
+        var im = parseInt(s.autoup_interval, 10) || 0;
+        var ih = Math.floor(im / 60), iM = im % 60;
+        dd = '每' + (ih > 0 ? ih + '时' : '') + (iM > 0 ? iM + '分' : (ih > 0 ? '' : (im > 0 ? '60分' : '0分（未启用）')));
+      }
+      else if (mode === 'weekly') dd = '每周' + ((s.autoup_days && s.autoup_days !== '*') ? s.autoup_days.replace(/0/g,'日') : '');
+      else dd = '每天';
+      b.title = '自动更新已开启：' + dd + (mode !== 'interval' ? ' ' + tstr : '') + '（点击修改计划）';
+    } else b.title = '设置自动更新计划';
+  }catch(e){}
+}
+var auTimes = [];
+function renderAuTimes(){
+  var box = $('auTimeChips');
+  if (!box) return;
+  box.innerHTML = '';
+  auTimes.forEach(function(t, i){
+    var sp = document.createElement('span');
+    sp.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:var(--pri,#1a73e8);color:#fff;padding:4px 10px;border-radius:999px;font-size:12px;line-height:1.4';
+    sp.textContent = t;
+    var x = document.createElement('b');
+    x.textContent = '×';
+    x.style.cssText = 'cursor:pointer;font-weight:700;padding:0 2px;opacity:.85';
+    x.onclick = function(){ auTimes.splice(i,1); renderAuTimes(); };
+    sp.appendChild(x);
+    box.appendChild(sp);
+  });
+}
+$('btnAuTimeAdd').onclick = function(){
+  var v = ($('auTime').value || '').trim();
+  if (/^\d{1,2}:\d{2}:\d{2}$/.test(v)) v = v.replace(/:\d{2}$/, '');
+  if (!/^\d{1,2}:\d{2}$/.test(v)){ toast('请选择有效时间', true); return; }
+  if (auTimes.indexOf(v) >= 0){ toast('该时间已添加', true); return; }
+  auTimes.push(v);
+  $('auTime').value = '';
+  renderAuTimes();
+};
+$('btnAutoUp').onclick = async function(){
+  $('btnAuSave').disabled = true; // 加载完成前禁用保存，防异步竞态
+  try{
+    var s = (await api('settings_get')).settings || {};
+    $('auEnabled').checked = !!s.autoup_enabled;
+    auTimes = (s.autoup_time || '').split(',').map(function(x){ return x.trim(); }).filter(function(x){ return /^\d{1,2}:\d{2}$/.test(x); });
+    if (!auTimes.length && s.autoup_time){
+      var sv = s.autoup_time.replace(/:\d{2}$/, '');
+      if (/^\d{1,2}:\d{2}$/.test(sv)) auTimes = [sv];
+    }
+    if (!auTimes.length) auTimes = ['03:00'];
+    $('auTime').value = '';
+    renderAuTimes();
+    var im = parseInt(s.autoup_interval, 10) || 0;
+    $('auIntH').value = Math.floor(im / 60);
+    $('auIntM').value = im % 60;
+    var mode = s.autoup_mode || 'daily';
+    $('auFreq').value = mode;
+    var cronDays = (mode === 'weekly' && s.autoup_days && s.autoup_days !== '*') ? s.autoup_days.split(',') : [];
+    $('auDays').querySelectorAll('input').forEach(function(bx){
+      var ui = bx.value === '7' ? '0' : bx.value;
+      bx.checked = cronDays.indexOf(ui) >= 0;
+    });
+    $('auDaysBox').style.display = (mode === 'weekly') ? 'block' : 'none';
+    $('auIntervalBox').style.display = (mode === 'interval') ? 'block' : 'none';
+    $('auTimeBox').style.display = (mode === 'interval') ? 'none' : 'block';
+    $('ovAutoUp').classList.add('show');
+    $('btnAuSave').disabled = false; // 加载完成，允许保存
+  }catch(e){ toast('读取设置失败：' + (e.message||e), true); $('btnAuSave').disabled = false; }
+};
+$('auFreq').onchange = function(){
+  var v = this.value;
+  $('auDaysBox').style.display = (v === 'weekly') ? 'block' : 'none';
+  $('auIntervalBox').style.display = (v === 'interval') ? 'block' : 'none';
+  $('auTimeBox').style.display = (v === 'interval') ? 'none' : 'block';
+};
+$('btnAuCancel').onclick = function(){ $('ovAutoUp').classList.remove('show'); };
+$('btnAuClose').onclick = function(){ $('ovAutoUp').classList.remove('show'); };
+$('btnAuSave').onclick = async function(){
+  var enabled = $('auEnabled').checked;
+  var mode = $('auFreq').value;
+  var time = auTimes.join(',');
+  var days = '*';
+  var interval = 6;
+  if (mode === 'daily' || mode === 'weekly'){
+    if (!auTimes.length){ toast('请至少添加一个升级时间', true); return; }
+  }
+  if (mode === 'weekly'){
+    var arr = [];
+    $('auDays').querySelectorAll('input:checked').forEach(function(bx){ arr.push(bx.value === '7' ? '0' : bx.value); });
+    if (!arr.length){ toast('请至少勾选一个升级日期', true); return; }
+    days = arr.join(',');
+  }
+  if (mode === 'interval'){
+    var ih = parseInt($('auIntH').value, 10) || 0;
+    var im = parseInt($('auIntM').value, 10) || 0;
+    interval = ih * 60 + im;
+    if (interval < 0 || interval > 1439){ toast('间隔时间请填 0 ~ 23小时59分', true); return; }
+    if (interval === 0) toast('间隔为 0:0，将不启用间隔升级', false);
+  }
+  $('btnAuSave').disabled = true;
+  try{
+    var g = await api('settings_get');
+    var s = g.settings || {};
+    var d = await api('settings_save', {dir:s.dir, default_map_dir:s.default_map_dir||'', autoup_enabled: enabled?'1':'0', autoup_mode: mode, autoup_time: time, autoup_days: days, autoup_interval: String(interval)});
+    if (d.error) throw new Error(d.error);
+    toast(enabled ? ('自动更新已开启：' + (mode === 'interval' ? (interval === 0 ? '间隔未启用（0:0）' : ('每' + (Math.floor(interval/60) > 0 ? Math.floor(interval/60) + '时' : '') + (interval%60 > 0 ? interval%60 + '分' : (Math.floor(interval/60) > 0 ? '' : interval + '分')))) : (mode === 'weekly' ? '每周' : '每天') + ' ' + time.replace(/,/g, '、'))) : '自动更新已关闭');
+    $('ovAutoUp').classList.remove('show');
+    updateAutoUpBtn();
+  }catch(e){
+    toast('保存失败：' + (e.message || e), true);
+  }
+  $('btnAuSave').disabled = false;
+};
+
+// ===== 自动更新日志 =====
+function openAuLog(){
+  $('ovAuLog').classList.add('show');
+  fitDlgTitle($('ovAuLog'));
+  $('auLogContent').textContent = '加载中…';
+  api('autoup_log').then(function(d){
+    $('auLogContent').textContent = d.log || '（暂无日志）';
+  }).catch(function(e){
+    $('auLogContent').textContent = '读取失败：' + (e.message||e);
+  });
+}
+$('btnAuLog').onclick = openAuLog;
+$('btnAuLogRefresh').onclick = function(){
+  $('auLogContent').textContent = '加载中…';
+  api('autoup_log').then(function(d){
+    $('auLogContent').textContent = d.log || '（暂无日志）';
+  }).catch(function(e){
+    $('auLogContent').textContent = '读取失败：' + (e.message||e);
+  });
+};
+$('btnAuLogClose').onclick = function(){ $('ovAuLog').classList.remove('show'); };
+$('btnAuLogCopy').onclick = function(){ copyText($('auLogContent').textContent); };
+$('btnAuLogOk').onclick = function(){ $('ovAuLog').classList.remove('show'); };
+
+load();
+</script>
+</body>
+</html>
