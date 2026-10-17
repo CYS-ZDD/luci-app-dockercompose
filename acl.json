@@ -1,0 +1,15 @@
+{
+    "luci-app-dockercompose": {
+        "description": "Grant access to Docker Compose 管理",
+        "read": {
+            "ubus": {
+                "file": ["*"]
+            }
+        },
+        "write": {
+            "ubus": {
+                "file": ["*"]
+            }
+        }
+    }
+}
