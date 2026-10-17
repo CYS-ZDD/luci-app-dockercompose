@@ -15,7 +15,7 @@ return view.extend({
 		var iframe = document.createElement('iframe');
 		iframe.setAttribute('frameborder', '0');
 		iframe.setAttribute('scrolling', 'auto');
-		iframe.src = '/luci-static/resources/dockercompose/index.html?v=0.6.3';
+		iframe.src = '/luci-static/resources/dockercompose/index.html?v=0.6.2';
 		iframe.style.cssText = 'display:block;margin:0;padding:0;border:0;width:100%;height:100%;';
 
 		var wrap = document.createElement('div');
