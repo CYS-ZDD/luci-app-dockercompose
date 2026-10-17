@@ -3,7 +3,7 @@
 import io, os, sys, tarfile, gzip, hashlib
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(BASE, "luci-app-dockercompose_0.6.3_all.ipk")
+OUT = os.path.join(BASE, "luci-app-dockercompose_0.6.2_all.ipk")
 
 def read_bin(p):
     with open(p, "rb") as f:
@@ -29,7 +29,7 @@ data_files = [
 ]
 
 control_content = to_lf(("""Package: luci-app-dockercompose
-Version: 0.6.3
+Version: 0.6.2
 Depends: libc, luci-base, docker-compose
 SourceName: luci-app-dockercompose
 License: GPL-2.0
